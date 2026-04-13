@@ -8,7 +8,6 @@
  */
 module dk.sdu.st4.agv {
     requires dk.sdu.st4.core;
-    requires dk.sdu.st4.common;
     requires java.net.http;
 
     exports dk.sdu.st4.agv.service;

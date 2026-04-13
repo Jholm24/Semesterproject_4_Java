@@ -13,7 +13,6 @@
  */
 module dk.sdu.st4.warehouse {
     requires dk.sdu.st4.core;
-    requires dk.sdu.st4.common;
     requires java.net.http;
     requires java.xml;
 

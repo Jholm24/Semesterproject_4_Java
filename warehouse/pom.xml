@@ -28,4 +28,20 @@
             http://localhost:8081/Service.asmx and add the resulting sources here.
         -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <!-- common has no module-info; grant read access via its jar-derived name -->
+                        <arg>--add-reads</arg>
+                        <arg>dk.sdu.st4.warehouse=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

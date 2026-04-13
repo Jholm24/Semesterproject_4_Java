@@ -9,7 +9,6 @@
  */
 module dk.sdu.st4.app {
     requires dk.sdu.st4.core;
-    requires dk.sdu.st4.common;
     requires dk.sdu.st4.agv;
     requires dk.sdu.st4.warehouse;
     requires dk.sdu.st4.assemblystation;
