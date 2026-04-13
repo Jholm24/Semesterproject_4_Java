@@ -81,8 +81,8 @@ public class AssemblyController implements IConnect, IAssembly {
         mqttClient.subscribe("emulator/checkhealth");
         return model.isHealthy;
     }
-    @Override public int getOperation(int machineId) throws MqttException, InterruptedException{
-        mqttClient.subscribe($"machine{machineid}/operation");
+    @Override public int getOperation() throws MqttException, InterruptedException{
+        mqttClient.subscribe("emulator/operation");
         return model.operationId;
     }
 
