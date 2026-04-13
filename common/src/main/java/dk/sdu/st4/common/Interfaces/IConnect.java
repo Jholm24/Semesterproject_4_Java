@@ -14,4 +14,5 @@ public interface IConnect {
     CompletableFuture<Void> connectMachine(int machineId);
     void disconnectMachine(int machineId);
     boolean isConnected(int machineId);
+    // Vi er fkn igang
 }
