@@ -16,7 +16,6 @@
  * from the jar filename: org.eclipse.paho.client.mqttv3
  */
 module dk.sdu.st4.assemblystation {
-    requires dk.sdu.st4.core;
     requires dk.sdu.st4.common;
     requires org.eclipse.paho.client.mqttv3;
 
