@@ -14,7 +14,8 @@ public interface IAssembly {
     void setLastOperationId(int lastOperationId);
 
     int getStatus() throws Exception;
-    boolean getHealth();
-    int getOperation();
+    boolean getHealth() throws Exception;
+    int getOperation() throws Exception;
     int getLastOperation();
+    void subscribeAll() throws Exception;
 }

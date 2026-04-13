@@ -73,16 +73,24 @@ public class AssemblyController implements IConnect, IAssembly {
 
     @Override
     public int getStatus() throws MqttException, InterruptedException {
-        Thread.sleep(5000);
-        mqttClient.subscribe("emulator/operation");
         mqttClient.subscribe("emulator/status");
-        mqttClient.subscribe("emulator/checkhealth");
-        System.out.println("Subscribing to topics...");
         return model.state;
     }
 
-    @Override public boolean getHealth()    { return model.isHealthy; }
-    @Override public int getOperation()     { return model.operationId; }
+    @Override public boolean getHealth() throws MqttException, InterruptedException{
+        mqttClient.subscribe("emulator/checkhealth");
+        return model.isHealthy;
+    }
+    @Override public int getOperation(int machineId) throws MqttException, InterruptedException{
+        mqttClient.subscribe($"machine{machineid}/operation");
+        return model.operationId;
+    }
+
+    @Override public void subscribeAll() throws MqttException, InterruptedException{
+        getStatus();
+        getHealth();
+        getOperation();
+    }
     @Override public int getLastOperation() { return model.lastOperationId; }
 
     // --- IConnect getters/setters ---
