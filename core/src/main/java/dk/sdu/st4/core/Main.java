@@ -6,5 +6,6 @@ public class Main {
     public static void main(String[] args) throws Exception {
         AssemblyController controller = new AssemblyController();
         controller.connectMachine(1883).join();
+        controller.getStatus();
     }
 }

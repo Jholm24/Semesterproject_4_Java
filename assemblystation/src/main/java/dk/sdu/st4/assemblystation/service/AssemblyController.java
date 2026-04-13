@@ -73,7 +73,7 @@ public class AssemblyController implements IConnect, IAssembly {
 
     @Override
     public int getStatus() throws MqttException, InterruptedException {
-        Thread.sleep(2000);
+        Thread.sleep(5000);
         mqttClient.subscribe("emulator/operation");
         mqttClient.subscribe("emulator/status");
         mqttClient.subscribe("emulator/checkhealth");
@@ -123,4 +123,5 @@ public class AssemblyController implements IConnect, IAssembly {
         MqttMessage message = new MqttMessage(command.getBytes(StandardCharsets.UTF_8));
         mqttClient.publish("assembly/" + model.machineId + "/command", message);
     }
+
 }
