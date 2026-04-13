@@ -1,9 +1,9 @@
 /**
  * App module — production orchestrator and application entry point.
- *
+ * <p>
  * Wires all component modules together and drives the production sequence:
  *   Warehouse (SOAP) ↔ AGV (REST) ↔ Assembly Station (MQTT)
- *
+ * <p>
  * Run with:
  *   java --module-path <all-jars> --module dk.sdu.st4.app/dk.sdu.st4.app.Main
  */
