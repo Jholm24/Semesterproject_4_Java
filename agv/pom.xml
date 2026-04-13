@@ -18,10 +18,6 @@
             <groupId>dk.sdu.st4</groupId>
             <artifactId>core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
         <!-- java.net.http (built-in, Java 11+) used for REST — no extra dependency needed -->
     </dependencies>
 

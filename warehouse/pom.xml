@@ -18,10 +18,6 @@
             <groupId>dk.sdu.st4</groupId>
             <artifactId>core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
         <!--
             SOAP transport is handled manually via java.net.http + java.xml (both built-in).
             For a fully generated stub approach, run wsimport against the WSDL at

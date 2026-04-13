@@ -18,10 +18,6 @@
             <groupId>dk.sdu.st4</groupId>
             <artifactId>core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
         <!-- Eclipse Paho MQTT v3 client -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>

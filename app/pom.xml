@@ -20,10 +20,6 @@
         </dependency>
         <dependency>
             <groupId>dk.sdu.st4</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
             <artifactId>agv</artifactId>
         </dependency>
         <dependency>
