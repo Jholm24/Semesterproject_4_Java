@@ -14,10 +14,6 @@
     <name>ST4 Common — Configuration &amp; Shared Utilities</name>
 
     <dependencies>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>core</artifactId>
-        </dependency>
         <!-- Jackson for JSON serialisation/deserialisation -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

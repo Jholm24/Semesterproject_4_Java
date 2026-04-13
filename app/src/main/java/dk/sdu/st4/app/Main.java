@@ -1,14 +1,5 @@
 package dk.sdu.st4.app;
 
-import dk.sdu.st4.agv.service.AgvServiceImpl;
-import dk.sdu.st4.app.orchestration.ProductionOrchestrator;
-import dk.sdu.st4.assemblystation.service.AssemblyStationServiceImpl;
-import dk.sdu.st4.common.config.AppConfig;
-import dk.sdu.st4.core.service.IAgvService;
-import dk.sdu.st4.core.service.IAssemblyStationService;
-import dk.sdu.st4.core.service.IWarehouseService;
-import dk.sdu.st4.warehouse.service.WarehouseServiceImpl;
-
 /**
  * Application entry point.
  *

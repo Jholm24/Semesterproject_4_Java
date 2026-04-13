@@ -6,7 +6,6 @@ import dk.sdu.st4.core.exception.AssemblyStationException;
 import dk.sdu.st4.core.exception.St4Exception;
 import dk.sdu.st4.core.exception.WarehouseException;
 import dk.sdu.st4.core.service.IAgvService;
-import dk.sdu.st4.core.service.IAssemblyStationService;
 import dk.sdu.st4.core.service.IWarehouseService;
 
 /**

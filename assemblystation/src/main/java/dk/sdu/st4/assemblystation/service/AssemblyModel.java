@@ -1,0 +1,17 @@
+package dk.sdu.st4.assemblystation.service;
+
+public class AssemblyModel {
+    // MQTT
+    public String broker;
+    public int port;
+
+    // IAssembly
+    public int state;
+    public boolean isHealthy;
+    public int operationId;
+    public int lastOperationId;
+
+    // IConnect
+    public int machineId;
+    public String machineType;
+}
