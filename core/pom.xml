@@ -12,6 +12,23 @@
 
     <artifactId>core</artifactId>
     <name>ST4 Core — Domain Models, Interfaces &amp; Exceptions</name>
+    <dependencies>
+        <dependency>
+            <groupId>dk.sdu.st4</groupId>
+            <artifactId>assemblystation</artifactId>
+        </dependency>
+    </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>dk.sdu.st4.core.Main</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <!-- No external runtime dependencies: core is a pure domain layer. -->
 </project>

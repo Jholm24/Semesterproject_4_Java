@@ -1,4 +1,4 @@
-﻿package dk.sdu.st4.assemblystation.client;
+package dk.sdu.st4.assemblystation.client;
 public class AssemblyModel {
     // MQTT
     public String broker;

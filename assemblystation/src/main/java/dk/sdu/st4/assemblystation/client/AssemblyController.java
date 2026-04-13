@@ -1,4 +1,4 @@
-﻿package dk.sdu.st4.assemblystation.client;
+package dk.sdu.st4.assemblystation.client;
 
 import dk.sdu.st4.common.Interfaces.IAssembly;
 import dk.sdu.st4.common.Interfaces.IConnect;
