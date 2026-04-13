@@ -14,4 +14,6 @@
 module dk.sdu.st4.warehouse {
     requires java.net.http;
     requires java.xml;
+    requires java.logging;
+    requires com.fasterxml.jackson.databind;
 }

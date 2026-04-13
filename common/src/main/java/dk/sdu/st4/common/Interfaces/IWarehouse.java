@@ -1,4 +1,4 @@
-﻿package dk.sdu.st4.common.Interfaces;
+package dk.sdu.st4.common.Interfaces;
 
 public interface IWarehouse {
 
