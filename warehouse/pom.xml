@@ -18,14 +18,26 @@
             <groupId>dk.sdu.st4</groupId>
             <artifactId>core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
         <!--
             SOAP transport is handled manually via java.net.http + java.xml (both built-in).
             For a fully generated stub approach, run wsimport against the WSDL at
             http://localhost:8081/Service.asmx and add the resulting sources here.
         -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <!-- common has no module-info; grant read access via its jar-derived name -->
+                        <arg>--add-reads</arg>
+                        <arg>dk.sdu.st4.warehouse=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

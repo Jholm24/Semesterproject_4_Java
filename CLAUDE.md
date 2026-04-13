@@ -26,7 +26,13 @@ mvn clean install
 docker compose up -d
 
 # Run via Maven or directly
-java --module-path target/modules --module dk.sdu.st4.app/dk.sdu.st4.app.Main
+# common is a plain library (classpath), so --add-reads is required for each named module
+java --module-path target/modules \
+     --add-reads dk.sdu.st4.agv=ALL-UNNAMED \
+     --add-reads dk.sdu.st4.warehouse=ALL-UNNAMED \
+     --add-reads dk.sdu.st4.assemblystation=ALL-UNNAMED \
+     --add-reads dk.sdu.st4.app=ALL-UNNAMED \
+     --module dk.sdu.st4.app/dk.sdu.st4.app.Main
 ```
 
 ### Run a single module's tests

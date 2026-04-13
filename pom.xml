@@ -17,7 +17,6 @@
 
     <modules>
         <module>core</module>
-        <module>common</module>
         <module>agv</module>
         <module>warehouse</module>
         <module>assemblystation</module>
