@@ -70,12 +70,25 @@ public class AgvClient {
      * @throws AgvException if the request fails or the response cannot be parsed
      */
     public AgvStatus sendPut(String jsonBody) throws AgvException {
-        // TODO:
-        //  1. Build HttpRequest with PUT method and jsonBody as body publisher
-        //     (Content-Type: application/json)
-        //  2. Send via httpClient.send(...)
-        //  3. Check response status code (expect 200)
-        //  4. Deserialise and return AgvStatus from response body
-        throw new UnsupportedOperationException("TODO: implement AgvClient.sendPut");
+        try {
+            // 1. Build PUT request with jsonBody as body publisher
+            HttpRequest request = HttpRequest.newBuilder(endpoint)
+                    .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .header("Content-Type", "application/json")
+                    .build();
+
+            // 2. Send the request
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // 3. Check response status code
+            if (response.statusCode() != 200) {
+            throw new AgvException("Unexpected status code: " + response.statusCode());}
+
+            // 4. Deserialize and return AgvStatus
+            return JsonUtil.fromJson(response.body(), AgvStatus.class);
+
+        } catch (IOException | InterruptedException e) {
+            throw new AgvException("Failed to send PUT AGV status: " + e.getMessage(), e);
+        }
     }
 }
