@@ -1,8 +1,10 @@
 package dk.sdu.st4.agv.client;
 
+import dk.sdu.st4.common.util.JsonUtil;
 import dk.sdu.st4.core.exception.AgvException;
 import dk.sdu.st4.core.model.AgvStatus;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -33,15 +35,30 @@ public class AgvClient {
      * @throws AgvException if the request fails or the response cannot be parsed
      */
     public AgvStatus getStatus() throws AgvException {
-        // TODO:
-        //  1. Build HttpRequest.newBuilder(endpoint).GET().build()
-        //  2. Send via httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-        //  3. Check response status code (expect 200)
-        //  4. Deserialise response body with JsonUtil.fromJson(body, AgvStatus.class)
-        //     Note: JSON field "Program name" maps to AgvStatus.programName — configure Jackson
-        //     with @JsonProperty or a custom deserialiser.
-        //  5. Return the deserialised AgvStatus
-        throw new UnsupportedOperationException("TODO: implement AgvClient.getStatus");
+        try {
+            // 1. Build the GET request
+            HttpRequest request = HttpRequest.newBuilder(endpoint)
+                    .GET()
+                    .build();
+
+            // 2. Send the request
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // 3. Check response status code
+            if (response.statusCode() != 200) {
+                throw new AgvException("Unexpected status code: " + response.statusCode());
+            }
+
+            // 4. Deserialize response body
+            AgvStatus status = JsonUtil.fromJson(response.body(), AgvStatus.class);
+
+            // 5. Return the deserialized AgvStatus
+            return status;
+        }
+        catch (IOException  | InterruptedException e) {
+            throw new AgvException("Failed to get AGV status: " + e.getMessage(), e);
+
+        }
     }
 
     /**
