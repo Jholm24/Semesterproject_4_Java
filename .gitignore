@@ -1,0 +1,195 @@
+##############################
+# Build artifacts
+##############################
+bin/
+obj/
+out/
+wwwroot/dist/
+wwwroot/build/
+*.dll
+*.pdb
+*.xml
+
+##############################
+# Java / JVM
+##############################
+# Compiled class files
+*.class
+
+# Logs
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ / Eclipse Java-specific
+*.iml
+.classpath
+.project
+.settings/
+
+##############################
+# User-specific files
+##############################
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.csproj.user
+*.dbmdl
+*.jfm
+
+##############################
+# Rider / JetBrains
+##############################
+.idea/
+*.sln.iml
+
+##############################
+# VS Code
+##############################
+.vscode/
+
+##############################
+# Visual Studio
+##############################
+.vs/
+
+##############################
+# OS generated files
+##############################
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+##############################
+# Logs
+##############################
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+##############################
+# Environment files / secrets
+##############################
+.env
+.env.*
+appsettings.Development.json
+secrets.json
+
+##############################
+# NuGet
+##############################
+*.nupkg
+*.snupkg
+packages/
+.nuget/packages/
+
+##############################
+# Node (if using frontend tooling)
+##############################
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+##############################
+# Blazor / ASP.NET specific
+##############################
+# Generated files
+Generated_Code/
+ServiceReferences/
+publish/
+artifacts/
+
+# Static web assets
+wwwroot/lib/
+
+##############################
+# Test results
+##############################
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+##############################
+# Dotnet CLI
+##############################
+.dotnet/
+
+##############################
+# Resharper / Rider caches
+##############################
+_ReSharper*/
+*.DotSettings.user
+
+##############################
+# Backup & temp files
+##############################
+*~
+*.tmp
+*.bak
+*.swp
+*.cache
+
+##############################
+# Database / local dev
+##############################
+*.mdf
+*.ldf
+*.sqlite
+*.db
+
+##############################
+# Azure / publish profiles
+##############################
+*.PublishSettings
+*.pubxml
+*.azurePubxml
+
+##############################
+# Claude Code
+##############################
+.claude/settings.local.json
+
+##############################
+# Misc
+##############################
+coverage/
+*.opendb
+*.VC.db
+
+##############################
+# GitHub / CI (optional)
+##############################
+# Uncomment if needed
+# .github/workflows/*.yml
