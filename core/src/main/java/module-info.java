@@ -15,7 +15,6 @@
 module dk.sdu.st4.core {
     exports dk.sdu.st4.core.model;
     exports dk.sdu.st4.core.enums;
-    exports dk.sdu.st4.core.service;
     exports dk.sdu.st4.core.exception;
 
     // Open model to all modules for Jackson reflection.

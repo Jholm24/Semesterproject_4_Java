@@ -12,9 +12,6 @@
  * is sufficient for simple three-operation services.
  */
 module dk.sdu.st4.warehouse {
-    requires dk.sdu.st4.core;
     requires java.net.http;
     requires java.xml;
-
-    exports dk.sdu.st4.warehouse.service;
 }

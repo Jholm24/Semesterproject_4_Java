@@ -14,10 +14,6 @@
     <name>ST4 AGV — REST Client Component</name>
 
     <dependencies>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>core</artifactId>
-        </dependency>
         <!-- java.net.http (built-in, Java 11+) used for REST — no extra dependency needed -->
     </dependencies>
 

@@ -7,8 +7,5 @@
  * REST endpoint: http://localhost:8082/v1/status/
  */
 module dk.sdu.st4.agv {
-    requires dk.sdu.st4.core;
     requires java.net.http;
-
-    exports dk.sdu.st4.agv.service;
 }
