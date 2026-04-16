@@ -8,7 +8,8 @@ public class Main {
         controller.connectMachine(1883).join();
         while(true) {
             //controller.getStatus();
-            controller.getOperation();
+            //controller.getOperation();
+            controller.setOperationId("Hej");
 
         }
     }

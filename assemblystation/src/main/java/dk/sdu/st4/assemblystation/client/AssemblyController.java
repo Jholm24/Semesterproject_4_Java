@@ -64,8 +64,20 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override public boolean isHealthy()             { return model.isHealthy; }
     @Override public void setHealthy(boolean h)      { model.isHealthy = h; }
 
-    @Override public String getOperationId()            { return model.operationId; }
-    @Override public void setOperationId(String id)     { model.operationId = id; }
+    @Override public String getOperationId()            {
+        return model.operationId;
+    }
+    @Override public void setOperationId(String id) {
+
+        String json = "{ \"ProcessID\": 123 }";
+        try {
+            MqttMessage message = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
+            mqttClient.publish("emulator/operation", message);
+        } catch (MqttException e){
+            e.printStackTrace();
+        }
+
+    }
 
     @Override public String getLastOperationId()        { return model.lastOperationId; }
     @Override public void setLastOperationId(String id) { model.lastOperationId = id; }

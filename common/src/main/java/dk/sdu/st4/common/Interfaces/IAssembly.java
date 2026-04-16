@@ -10,7 +10,7 @@ public interface IAssembly {
     void setOperationId(String operationId);
 
     String getLastOperationId();
-    void setLastOperationId(String lastOperationId);
+    void setLastOperationId (String lastOperationId)  ;
 
     int getStatus() throws Exception;
     boolean getHealth() throws Exception;
