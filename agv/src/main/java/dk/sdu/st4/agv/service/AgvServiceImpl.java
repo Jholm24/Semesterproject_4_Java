@@ -5,10 +5,10 @@ import dk.sdu.st4.common.config.AppConfig;
 import dk.sdu.st4.core.enums.AgvProgram;
 import dk.sdu.st4.core.exception.AgvException;
 import dk.sdu.st4.core.model.AgvStatus;
-import dk.sdu.st4.core.service.IAgvService;
+import dk.sdu.st4.common.Interfaces.IAgv;
 
 /**
- * REST-backed implementation of {@link IAgvService}.
+ * REST-backed implementation of {@link IAgv}.
  *
  * <p>Operation workflow (two-step "load then execute"):
  * <ol>
@@ -17,7 +17,7 @@ import dk.sdu.st4.core.service.IAgvService;
  *   <li>Poll {@link #getStatus()} until state is IDLE (1) to confirm completion.</li>
  * </ol>
  */
-public class AgvServiceImpl implements IAgvService {
+public class AgvServiceImpl implements IAgv {
 
     private final AgvClient client;
 

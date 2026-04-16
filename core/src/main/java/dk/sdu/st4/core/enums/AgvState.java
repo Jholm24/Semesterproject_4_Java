@@ -7,25 +7,25 @@ package dk.sdu.st4.core.enums;
  */
 public enum AgvState {
 
-    IDLE(1),
-    EXECUTING(2),
-    CHARGING(3);
+    Idle(1),
+    Executing(2),
+    Charging(3);
 
-    private final int code;
+    private final int state;
 
-    AgvState(int code) {
-        this.code = code;
+    AgvState(int state) {
+        this.state = state;
     }
 
-    public int getCode() {
-        return code;
+    public int getState() {
+        return state;
     }
 
     /** Resolves a raw integer code to the corresponding enum constant. */
-    public static AgvState fromCode(int code) {
+    public static AgvState fromState(int state) {
         for (AgvState s : values()) {
-            if (s.code == code) return s;
+            if (s.state == state) return s;
         }
-        throw new IllegalArgumentException("Unknown AGV state code: " + code);
+        throw new IllegalArgumentException("Unknown AGV state code: " + state);
     }
 }
