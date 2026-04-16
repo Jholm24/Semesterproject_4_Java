@@ -3,7 +3,7 @@
  * <p>
  * Communicates with the Warehouse PLC over SOAP/HTTP using the built-in
  * {@code java.net.http} client for transport and {@code java.xml} for XML handling.
- * Implements {@link dk.sdu.st4.core.service.IWarehouseService}.
+ * Implements {link dk.sdu.st4.core.service.IWarehouseService}.
  * <p>
  * WSDL / service endpoint: http://localhost:8081/Service.asmx
  * <p>
@@ -14,4 +14,9 @@
 module dk.sdu.st4.warehouse {
     requires java.net.http;
     requires java.xml;
+    requires java.logging;
+    requires com.fasterxml.jackson.databind;
+    requires jakarta.xml.bind;
+    requires jakarta.jws;
+    requires jakarta.xml.ws;
 }
