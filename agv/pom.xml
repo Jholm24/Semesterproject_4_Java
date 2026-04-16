@@ -14,6 +14,14 @@
     <name>ST4 AGV — REST Client Component</name>
 
     <dependencies>
+        <dependency>
+            <groupId>dk.sdu.st4</groupId>
+            <artifactId>core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dk.sdu.st4</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
         <!-- java.net.http (built-in, Java 11+) used for REST — no extra dependency needed -->
     </dependencies>
 
@@ -24,7 +32,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <compilerArgs>
-                        <!-- common has no module-info; grant read access via its jar-derived name -->
+                        <!-- common has no module-info.java; it lives on the classpath (unnamed module) -->
                         <arg>--add-reads</arg>
                         <arg>dk.sdu.st4.agv=ALL-UNNAMED</arg>
                     </compilerArgs>
