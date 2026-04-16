@@ -55,12 +55,14 @@ app
 
 | Module | Package | Role |
 |---|---|---|
-| `core` | `dk.sdu.st4.core` | Pure domain layer — models (`AgvStatus`, `AssemblyStatus`, `HealthCheckResult`, `WarehouseInventory`), enums, checked exceptions. Service interfaces (`IAgvService` etc.) belong in `core/service/` but that **package does not exist yet** and must be created. |
-| `common` | `dk.sdu.st4.common` | Plain library (no `module-info.java`). Contains `AppConfig` (all endpoint/topic constants) and `JsonUtil` (Jackson wrapper, **currently fully stubbed**). Named modules access it via `--add-reads …=ALL-UNNAMED` at both compile time (Maven compiler plugin) and runtime. |
+| `core` | `dk.sdu.st4.core` | Pure domain layer — models (`AgvStatus`, `AssemblyStatus`, `HealthCheckResult`, `WarehouseInventory`) and enums only. No implementations live here. |
+| `common` | `dk.sdu.st4.common` | Plain library (no `module-info.java`). Contains `AppConfig` (all endpoint/topic constants), `JsonUtil` (Jackson wrapper, **currently fully stubbed**), and service interfaces (`IAgv` in `common.Interfaces`). Named modules access it via `--add-reads …=ALL-UNNAMED` at both compile time (Maven compiler plugin) and runtime. |
 | `agv` | `dk.sdu.st4.agv` | REST client (`AgvClient` via `java.net.http`) + `AgvServiceImpl`. Two-step pattern: `loadProgram()` then `executeProgram()`, poll `getStatus()` until `Idle`. |
 | `warehouse` | `dk.sdu.st4.warehouse` | SOAP client (`WarehouseClient` — manually builds envelopes, uses `java.xml`) + `WarehouseServiceImpl`. |
 | `assemblystation` | `dk.sdu.st4.assemblystation` | MQTT client (`AssemblyStationClient` using Eclipse Paho) + `AssemblyStationServiceImpl`. Publish to `emulator/operation`, subscribe to `emulator/status` and `emulator/checkhealth`. |
 | `app` | `dk.sdu.st4.app` | **Does not exist yet.** Entry point (`Main`) and `ProductionOrchestrator` — the only place where all services are wired together. Must be added as a Maven module **and** registered in the parent `pom.xml` `<modules>` list. |
+
+**Key constraint:** Service implementations (`AgvServiceImpl`, etc.) must stay in their own module (`agv`, `warehouse`, `assemblystation`) — never in `core` or `common`. They depend on their module's client class (e.g. `AgvClient`), and moving them to `core` would invert the dependency graph (`core → agv`) creating a cycle.
 
 ### Implementation order (stub dependencies)
 
@@ -89,6 +91,9 @@ Everything blocks on `JsonUtil` — it is fully stubbed with `UnsupportedOperati
 - `MQTT_UNHEALTHY_PROCESS_ID` = `9999` (triggers error path for testing)
 - `AGV_LOAD_STATE` = `1`, `AGV_EXECUTE_STATE` = `2`
 
+### Error handling
+All interface methods (`IAgv`, and any future `IWarehouse`/`IAssemblyStation` equivalents) declare `throws Exception`. No custom exception classes — use `Exception` directly and let it propagate.
+
 ### AGV state machine
 - `AgvState` constants use **PascalCase**: `Idle` (1), `Executing` (2), `Charging` (3) — look up via `AgvState.fromState(int)`
 - `AssemblyState.IDLE` = code `0`, `EXECUTING` = `1`, `ERROR` = `2`
@@ -105,6 +110,8 @@ The AGV REST API uses PascalCase and a spaced key. `AgvStatus` fields **must be 
 | `timestamp` | `"TimeStamp"` |
 
 `AgvState` is serialised as an integer — Jackson needs a `@JsonCreator` on `AgvState.fromState(int)` to map the raw integer to the enum. The same pattern applies to `AssemblyState`.
+
+JSON request bodies for AGV PUT calls must be built as plain strings or via `JsonUtil.toJson()` (once implemented) — not object literals. Example: `"{\"Program name\": \"" + program.getApiName() + "\", \"State\": " + AppConfig.AGV_LOAD_STATE + "}"`.
 
 ### JPMS / `common` library constraint
 `common` intentionally has no `module-info.java`. Named modules (`agv`, `assemblystation`, and eventually `app`) access it via the unnamed module. Each such module must have in its `pom.xml`:

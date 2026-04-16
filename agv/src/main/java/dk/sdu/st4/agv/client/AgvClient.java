@@ -55,10 +55,9 @@ public class AgvClient {
      * Used for both load-program and execute-program requests.
      *
      * @param jsonBody request payload, e.g. {@code {"Program name":"...", "State":1}}
-     * @return AGV status from the PUT response body
      * @throws Exception if the request fails or the response cannot be parsed
      */
-    public AgvStatus sendPut(String jsonBody) throws Exception {
+    public void sendPut(String jsonBody) throws Exception {
         // 1. Build PUT request with jsonBody as body publisher
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
@@ -74,6 +73,6 @@ public class AgvClient {
         }
 
         // 4. Deserialize and return AgvStatus
-        return JsonUtil.fromJson(response.body(), AgvStatus.class);
+        JsonUtil.fromJson(response.body(), AgvStatus.class);
     }
 }

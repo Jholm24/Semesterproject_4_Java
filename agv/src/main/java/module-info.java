@@ -2,7 +2,7 @@
  * AGV module — REST client component.
  *
  * Communicates with the AGV via HTTP PUT/GET using the built-in {@code java.net.http} client.
- * Implements {@link dk.sdu.st4.core.service.IAgvService}.
+ * Implements {@link dk.sdu.st4.common.Interfaces.IAgv}.
  *
  * REST endpoint: http://localhost:8082/v1/status/
  */

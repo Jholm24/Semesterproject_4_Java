@@ -37,10 +37,8 @@ public class AgvServiceImpl implements IAgv {
      */
     @Override
     public void loadProgram(AgvProgram program) throws Exception {
-        // TODO:
-        //  Build JSON body:  {"Program name": program.getApiName(), "State": AppConfig.AGV_LOAD_STATE}
-        //  Call client.sendPut(body) and verify the returned state indicates load accepted.
-        throw new UnsupportedOperationException("TODO: implement AgvServiceImpl.loadProgram");
+         var body = String.format("{\"Program name\": \"%s\", \"State\": %d}", program.getProgram(), AppConfig.AGV_LOAD_STATE);
+        client.sendPut(body);
     }
 
     /**
@@ -50,16 +48,13 @@ public class AgvServiceImpl implements IAgv {
      */
     @Override
     public void executeProgram() throws Exception {
-        // TODO:
-        //  Build JSON body:  {"State": AppConfig.AGV_EXECUTE_STATE}
-        //  Call client.sendPut(body).
-        throw new UnsupportedOperationException("TODO: implement AgvServiceImpl.executeProgram");
+        var body = String.format("{\"State\": %d}", AppConfig.AGV_EXECUTE_STATE);
+        client.sendPut(body);
     }
 
     /** {@inheritDoc} */
     @Override
     public AgvStatus getStatus() throws Exception {
-        // TODO: Delegate to client.getStatus()
-        throw new UnsupportedOperationException("TODO: implement AgvServiceImpl.getStatus");
+        return client.getStatus();
     }
 }
