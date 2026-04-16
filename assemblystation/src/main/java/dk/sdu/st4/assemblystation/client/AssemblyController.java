@@ -40,7 +40,6 @@ public class AssemblyController implements IConnect, IAssembly {
 
                 switch (topic) {
                     case "emulator/operation":
-                        model.operationId = Integer.parseInt(payload);
                         System.out.println("Operation: " + payload);
                         break;
                     case "emulator/status":
@@ -65,11 +64,11 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override public boolean isHealthy()             { return model.isHealthy; }
     @Override public void setHealthy(boolean h)      { model.isHealthy = h; }
 
-    @Override public int getOperationId()            { return model.operationId; }
-    @Override public void setOperationId(int id)     { model.operationId = id; }
+    @Override public String getOperationId()            { return model.operationId; }
+    @Override public void setOperationId(String id)     { model.operationId = id; }
 
-    @Override public int getLastOperationId()        { return model.lastOperationId; }
-    @Override public void setLastOperationId(int id) { model.lastOperationId = id; }
+    @Override public String getLastOperationId()        { return model.lastOperationId; }
+    @Override public void setLastOperationId(String id) { model.lastOperationId = id; }
 
     @Override
     public int getStatus() throws MqttException, InterruptedException {
@@ -81,8 +80,9 @@ public class AssemblyController implements IConnect, IAssembly {
         mqttClient.subscribe("emulator/checkhealth");
         return model.isHealthy;
     }
-    @Override public int getOperation() throws MqttException, InterruptedException{
+    @Override public String getOperation() throws MqttException, InterruptedException{
         mqttClient.subscribe("emulator/operation");
+
         return model.operationId;
     }
 
@@ -91,7 +91,7 @@ public class AssemblyController implements IConnect, IAssembly {
         getHealth();
         getOperation();
     }
-    @Override public int getLastOperation() { return model.lastOperationId; }
+    @Override public String getLastOperation() { return model.lastOperationId; }
 
     // --- IConnect getters/setters ---
     @Override public int getMachineId()               { return model.machineId; }

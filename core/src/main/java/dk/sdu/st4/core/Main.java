@@ -7,7 +7,8 @@ public class Main {
         AssemblyController controller = new AssemblyController();
         controller.connectMachine(1883).join();
         while(true) {
-            controller.getStatus();
+            //controller.getStatus();
+            controller.getOperation();
 
         }
     }
