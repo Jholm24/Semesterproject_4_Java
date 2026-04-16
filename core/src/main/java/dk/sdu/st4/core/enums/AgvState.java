@@ -1,5 +1,7 @@
 package dk.sdu.st4.core.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 /**
  * Operational states reported by the AGV REST API.
  *
@@ -22,6 +24,7 @@ public enum AgvState {
     }
 
     /** Resolves a raw integer code to the corresponding enum constant. */
+    @JsonCreator
     public static AgvState fromState(int state) {
         for (AgvState s : values()) {
             if (s.state == state) return s;

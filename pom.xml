@@ -21,7 +21,6 @@
         <module>agv</module>
         <module>warehouse</module>
         <module>assemblystation</module>
-
     </modules>
 
     <properties>

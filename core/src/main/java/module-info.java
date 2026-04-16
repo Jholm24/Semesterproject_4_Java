@@ -13,6 +13,8 @@
  * them when serialising/deserialising in the common and component modules.
  */
 module dk.sdu.st4.core {
+    requires com.fasterxml.jackson.annotation;
+
     exports dk.sdu.st4.core.model;
     exports dk.sdu.st4.core.enums;
 

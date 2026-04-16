@@ -13,5 +13,12 @@
     <artifactId>core</artifactId>
     <name>ST4 Core — Domain Models, Interfaces &amp; Exceptions</name>
 
-    <!-- No external runtime dependencies: core is a pure domain layer. -->
+    <dependencies>
+        <!-- Jackson annotations only — lightweight, no runtime deps. Needed for @JsonProperty/@JsonCreator on domain models. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+    </dependencies>
 </project>

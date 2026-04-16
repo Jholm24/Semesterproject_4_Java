@@ -25,8 +25,11 @@ public final class JsonUtil {
      *                          if serialisation fails
      */
     public static String toJson(Object object) {
-        // TODO: Implement — delegate to MAPPER.writeValueAsString(object)
-        throw new UnsupportedOperationException("TODO: implement JsonUtil.toJson");
+        try {
+            return MAPPER.writeValueAsString(object);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -40,7 +43,10 @@ public final class JsonUtil {
      *                          if deserialisation fails
      */
     public static <T> T fromJson(String json, Class<T> type) {
-        // TODO: Implement — delegate to MAPPER.readValue(json, type)
-        throw new UnsupportedOperationException("TODO: implement JsonUtil.fromJson");
+        try {
+            return MAPPER.readValue(json, type);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
