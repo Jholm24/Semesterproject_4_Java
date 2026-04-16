@@ -85,6 +85,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     @Override
     public int getMachineId() {
         //TODO:
+        return 0;
     }
 
     @Override
