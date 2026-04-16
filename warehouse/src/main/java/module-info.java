@@ -19,4 +19,5 @@ module dk.sdu.st4.warehouse {
     requires jakarta.xml.bind;
     requires jakarta.jws;
     requires jakarta.xml.ws;
+    requires dk.sdu.st4.common;
 }
