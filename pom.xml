@@ -21,6 +21,7 @@
         <module>agv</module>
         <module>warehouse</module>
         <module>assemblystation</module>
+        <module>common</module>
     </modules>
 
     <properties>
@@ -72,6 +73,20 @@
                 <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
                 <version>${paho.version}</version>
             </dependency>
+
+            <!-- Apache CXF JAX-WS -->
+            <dependency>
+                <groupId>org.apache.cxf</groupId>
+                <artifactId>cxf-rt-frontend-jaxws</artifactId>
+                <version>4.0.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.cxf</groupId>
+                <artifactId>cxf-rt-transports-http</artifactId>
+                <version>4.0.4</version>
+            </dependency>
+
+
         </dependencies>
     </dependencyManagement>
 
