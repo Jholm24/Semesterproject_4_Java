@@ -17,4 +17,6 @@ public interface IAssembly {
     String getOperation() throws Exception;
     String getLastOperation();
     void subscribeAll() throws Exception;
+    void executeOperation();
+    void errorOperation();
 }

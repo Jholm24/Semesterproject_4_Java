@@ -1,5 +1,5 @@
 package dk.sdu.st4.assemblystation.client;
-
+import java.util.Random;
 import dk.sdu.st4.common.Interfaces.IAssembly;
 import dk.sdu.st4.common.Interfaces.IConnect;
 import org.eclipse.paho.client.mqttv3.*;
@@ -69,7 +69,7 @@ public class AssemblyController implements IConnect, IAssembly {
     }
     @Override public void setOperationId(String id) {
 
-        String json = "{ \"ProcessID\": 123 }";
+        String json = String.format("{\"ProcessID\": %s}", id);
         try {
             MqttMessage message = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
             mqttClient.publish("emulator/operation", message);
@@ -77,6 +77,17 @@ public class AssemblyController implements IConnect, IAssembly {
             e.printStackTrace();
         }
 
+    }
+
+    //Random operation number so we can show different operations
+    @Override public void executeOperation(){
+        Random r = new Random();
+        int number = r.nextInt(9998) + 1;
+        setOperationId(String.valueOf(number));
+    }
+
+    @Override public void errorOperation(){
+        setOperationId("9999");
     }
 
     @Override public String getLastOperationId()        { return model.lastOperationId; }
