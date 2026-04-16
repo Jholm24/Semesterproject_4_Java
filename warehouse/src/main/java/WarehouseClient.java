@@ -5,86 +5,124 @@ import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
 import dk.sdu.st4.common.Interfaces.IWarehouse;
 import dk.sdu.st4.common.Interfaces.IConnect;
 
+import jakarta.xml.ws.BindingProvider;
+import org.glassfish.jaxb.core.v2.TODO;
+
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class WarehouseClient implements IWarehouse, IConnect {
-    private final IEmulatorService port;
-    private final ObjectMapper mapper = new ObjectMapper();
 
-    public WarehouseClient () {
-        IEmulatorService_Service factory = new IEmulatorService_Service();
-        this.port = factory.getBasicHttpBindingIEmulatorService();
-    }
+    //singleton pattern
+    private static WarehouseClient instance;
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private final Map<Integer, IEmulatorService> connections = new HashMap<>();
+    private final Map<Integer, String> endpoints = new HashMap<>();
+    private final Map<Integer, Boolean> connectionState = new HashMap<>();
 
-    @Override
-    public void PickItem(int trayID) {
-        port.pickItem(trayID);
-    }
+    //singleton pattern
+    private WarehouseClient() {}
 
-    @Override
-    public void InsertItem(int trayID, String name) {
-        port.insertItem(trayID, name);
-    }
-
-    @Override
-    public void GetInventory() {
-        port.getInventory();
-    }
-
-    @Override
-    public int GetState() {
-        try {
-            String json = port.getInventory();
-            JsonNode root = mapper.readTree(json);
-            return root.get("State").asInt();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to read State from inventory", e);
+    //How to acces object.
+    public static WarehouseClient getInstance() {
+        if (instance == null) {
+            instance = new WarehouseClient();
         }
+        return instance;
     }
 
-    @Override
-    public int getMachineId() {
-        return 0;
+    // IConnect
+
+    @Override // method for adding Warehouse machines to the hashmap.
+    public void addMachine(int machineId, String url) {
+        if (endpoints.containsKey(machineId)) {
+            throw new IllegalArgumentException("Machine " + machineId + " is already registered");
+        }
+        endpoints.put(machineId, url);
+        connectionState.put(machineId, false);
     }
 
-    @Override
-    public void setMachineId(int machineId) {
-
-    }
-
-    @Override
-    public String getMachineType() {
-        return "";
-    }
-
-    @Override
-    public void setMachineType(String machineType) {
-
-    }
-
-    @Override
-    public void addMachine(int machineId, String machineType) {
-
-
-    }
-
-    @Override
+    @Override // method for removing machines from the hashmap.
     public void removeMachine(int machineId) {
-
+        connections.remove(machineId);
+        endpoints.remove(machineId);
+        connectionState.remove(machineId);
     }
 
     @Override
     public CompletableFuture<Void> connectMachine(int machineId) {
-        return null;
+        return CompletableFuture.runAsync(() -> {
+            try {
+                String url = endpoints.get(machineId);
+                IEmulatorService_Service factory = new IEmulatorService_Service(
+                    new URL(url + "?wsdl"),
+                    IEmulatorService_Service.SERVICE
+                );
+                IEmulatorService proxy = factory.getBasicHttpBindingIEmulatorService();
+                ((BindingProvider) proxy).getRequestContext() // bindingProvider used to override the hardcoded port, from generated code(Jakarta)
+                    .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
+                connections.put(machineId, proxy);
+                connectionState.put(machineId, true);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to connect to warehouse " + machineId, e);
+            }
+        });
     }
 
     @Override
     public void disconnectMachine(int machineId) {
-
+        connections.remove(machineId);
+        connectionState.put(machineId, false);
     }
 
     @Override
     public boolean isConnected(int machineId) {
-        return false;
+        return connectionState.getOrDefault(machineId, false);
+    }
+
+    @Override
+    public int getMachineId() {
+        //TODO:
+    }
+
+    @Override
+    public void setMachineId(int machineId) {
+        //TODO:
+    }
+
+    @Override
+    public String getMachineType() { return "Warehouse"; }
+
+    @Override
+    public void setMachineType(String machineType) {}
+
+    // IWarehouse
+
+    @Override
+    public void PickItem(int trayID, int machineID) {
+        connections.get(machineID).pickItem(trayID);
+    }
+
+    @Override
+    public void InsertItem(int trayID, String name, int machineID) {
+        connections.get(machineID).insertItem(trayID, name);
+    }
+
+    @Override
+    public void GetInventory(int machineID) {
+        connections.get(machineID).getInventory();
+    }
+
+    @Override
+    public int GetState(int machineID) {
+        try {
+            String json = connections.get(machineID).getInventory();
+            JsonNode root = mapper.readTree(json);
+            return root.get("State").asInt();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read State from warehouse " + machineID, e);
+        }
     }
 }

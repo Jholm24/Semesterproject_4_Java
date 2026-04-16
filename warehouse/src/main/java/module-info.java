@@ -20,4 +20,5 @@ module dk.sdu.st4.warehouse {
     requires jakarta.jws;
     requires jakarta.xml.ws;
     requires dk.sdu.st4.common;
+    requires org.glassfish.jaxb.core;
 }
