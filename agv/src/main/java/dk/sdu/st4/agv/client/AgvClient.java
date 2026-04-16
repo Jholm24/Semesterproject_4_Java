@@ -1,10 +1,8 @@
 package dk.sdu.st4.agv.client;
 
 import dk.sdu.st4.common.util.JsonUtil;
-import dk.sdu.st4.core.exception.AgvException;
 import dk.sdu.st4.core.model.AgvStatus;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -32,33 +30,24 @@ public class AgvClient {
      * Sends an HTTP GET to the AGV endpoint and returns the parsed {@link AgvStatus}.
      *
      * @return current AGV status
-     * @throws AgvException if the request fails or the response cannot be parsed
+     * @throws Exception if the request fails or the response cannot be parsed
      */
-    public AgvStatus getStatus() throws AgvException {
-        try {
-            // 1. Build the GET request
-            HttpRequest request = HttpRequest.newBuilder(endpoint)
-                    .GET()
-                    .build();
+    public AgvStatus getStatus() throws Exception {
+        // 1. Build the GET request
+        HttpRequest request = HttpRequest.newBuilder(endpoint)
+                .GET()
+                .build();
 
-            // 2. Send the request
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        // 2. Send the request
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // 3. Check response status code
-            if (response.statusCode() != 200) {
-                throw new AgvException("Unexpected status code: " + response.statusCode());
-            }
-
-            // 4. Deserialize response body
-            AgvStatus status = JsonUtil.fromJson(response.body(), AgvStatus.class);
-
-            // 5. Return the deserialized AgvStatus
-            return status;
+        // 3. Check response status code
+        if (response.statusCode() != 200) {
+            throw new Exception("Unexpected status code: " + response.statusCode());
         }
-        catch (IOException  | InterruptedException e) {
-            throw new AgvException("Failed to get AGV status: " + e.getMessage(), e);
 
-        }
+        // 4. Deserialize and return
+        return JsonUtil.fromJson(response.body(), AgvStatus.class);
     }
 
     /**
@@ -67,28 +56,24 @@ public class AgvClient {
      *
      * @param jsonBody request payload, e.g. {@code {"Program name":"...", "State":1}}
      * @return AGV status from the PUT response body
-     * @throws AgvException if the request fails or the response cannot be parsed
+     * @throws Exception if the request fails or the response cannot be parsed
      */
-    public AgvStatus sendPut(String jsonBody) throws AgvException {
-        try {
-            // 1. Build PUT request with jsonBody as body publisher
-            HttpRequest request = HttpRequest.newBuilder(endpoint)
-                    .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .header("Content-Type", "application/json")
-                    .build();
+    public AgvStatus sendPut(String jsonBody) throws Exception {
+        // 1. Build PUT request with jsonBody as body publisher
+        HttpRequest request = HttpRequest.newBuilder(endpoint)
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .header("Content-Type", "application/json")
+                .build();
 
-            // 2. Send the request
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        // 2. Send the request
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // 3. Check response status code
-            if (response.statusCode() != 200) {
-            throw new AgvException("Unexpected status code: " + response.statusCode());}
-
-            // 4. Deserialize and return AgvStatus
-            return JsonUtil.fromJson(response.body(), AgvStatus.class);
-
-        } catch (IOException | InterruptedException e) {
-            throw new AgvException("Failed to send PUT AGV status: " + e.getMessage(), e);
+        // 3. Check response status code
+        if (response.statusCode() != 200) {
+            throw new Exception("Unexpected status code: " + response.statusCode());
         }
+
+        // 4. Deserialize and return AgvStatus
+        return JsonUtil.fromJson(response.body(), AgvStatus.class);
     }
 }

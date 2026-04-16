@@ -3,7 +3,6 @@ package dk.sdu.st4.agv.service;
 import dk.sdu.st4.agv.client.AgvClient;
 import dk.sdu.st4.common.config.AppConfig;
 import dk.sdu.st4.core.enums.AgvProgram;
-import dk.sdu.st4.core.exception.AgvException;
 import dk.sdu.st4.core.model.AgvStatus;
 import dk.sdu.st4.common.Interfaces.IAgv;
 
@@ -37,7 +36,7 @@ public class AgvServiceImpl implements IAgv {
      * <p>Sends: {@code {"Program name": "<program.apiName>", "State": 1}}
      */
     @Override
-    public void loadProgram(AgvProgram program) throws AgvException {
+    public void loadProgram(AgvProgram program) throws Exception {
         // TODO:
         //  Build JSON body:  {"Program name": program.getApiName(), "State": AppConfig.AGV_LOAD_STATE}
         //  Call client.sendPut(body) and verify the returned state indicates load accepted.
@@ -50,7 +49,7 @@ public class AgvServiceImpl implements IAgv {
      * <p>Sends: {@code {"State": 2}}
      */
     @Override
-    public void executeProgram() throws AgvException {
+    public void executeProgram() throws Exception {
         // TODO:
         //  Build JSON body:  {"State": AppConfig.AGV_EXECUTE_STATE}
         //  Call client.sendPut(body).
@@ -59,7 +58,7 @@ public class AgvServiceImpl implements IAgv {
 
     /** {@inheritDoc} */
     @Override
-    public AgvStatus getStatus() throws AgvException {
+    public AgvStatus getStatus() throws Exception {
         // TODO: Delegate to client.getStatus()
         throw new UnsupportedOperationException("TODO: implement AgvServiceImpl.getStatus");
     }
