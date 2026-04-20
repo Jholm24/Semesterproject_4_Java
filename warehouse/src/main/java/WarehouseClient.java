@@ -1,5 +1,6 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dk.sdu.st4.core.db.DBConnection;
 import dk.sdu.st4.warehouse.service.IEmulatorService;
 import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
 import dk.sdu.st4.common.Interfaces.IWarehouse;
@@ -8,8 +9,10 @@ import dk.sdu.st4.common.Interfaces.IConnect;
 import jakarta.xml.ws.BindingProvider;
 import org.glassfish.jaxb.core.v2.TODO;
 
+import java.sql.*;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,12 +21,11 @@ public class WarehouseClient implements IWarehouse, IConnect {
     //singleton pattern
     private static WarehouseClient instance;
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final Map<Integer, IEmulatorService> connections = new HashMap<>();
-    private final Map<Integer, String> endpoints = new HashMap<>();
     private final Map<Integer, Boolean> connectionState = new HashMap<>();
 
     //singleton pattern
-    private WarehouseClient() {}
+    private WarehouseClient() {
+    }
 
     //How to acces object.
     public static WarehouseClient getInstance() {
@@ -37,18 +39,29 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     @Override // method for adding Warehouse machines to the hashmap.
     public void addMachine(int machineId, String url) {
-        if (endpoints.containsKey(machineId)) {
-            throw new IllegalArgumentException("Machine " + machineId + " is already registered");
+        String machineType = getMachineType();
+        // Timestamp createdAt = new Timestamp(new Date());
+
+        String sql = """
+                INSERT INTO warehouse_machines (machine_id, machine_type, url)
+                VALUES (?, ?, ?);
+                """;
+        try (Connection connection = DBConnection.getInstance().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(sql);
+            statement.setInt(1, machineId);
+            statement.setString(2, machineType);
+            statement.setString(3, url);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        endpoints.put(machineId, url);
-        connectionState.put(machineId, false);
     }
 
     @Override // method for removing machines from the hashmap.
     public void removeMachine(int machineId) {
-        connections.remove(machineId);
-        endpoints.remove(machineId);
-        connectionState.remove(machineId);
+//        connections.remove(machineId);
+//        endpoints.remove(machineId);
+//        connectionState.remove(machineId);
     }
 
     @Override
@@ -57,12 +70,12 @@ public class WarehouseClient implements IWarehouse, IConnect {
             try {
                 String url = endpoints.get(machineId);
                 IEmulatorService_Service factory = new IEmulatorService_Service(
-                    new URL(url + "?wsdl"),
-                    IEmulatorService_Service.SERVICE
+                        new URL(url + "?wsdl"),
+                        IEmulatorService_Service.SERVICE
                 );
                 IEmulatorService proxy = factory.getBasicHttpBindingIEmulatorService();
                 ((BindingProvider) proxy).getRequestContext() // bindingProvider used to override the hardcoded port, from generated code(Jakarta)
-                    .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
+                        .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
                 connections.put(machineId, proxy);
                 connectionState.put(machineId, true);
             } catch (Exception e) {
@@ -86,6 +99,10 @@ public class WarehouseClient implements IWarehouse, IConnect {
     public int getMachineId() {
         //TODO:
         return 0;
+
+        //
+
+
     }
 
     @Override
@@ -94,10 +111,27 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public String getMachineType() { return "Warehouse"; }
+    public String getMachineType() {
+        //Tjek igennem database for at finde maskinens URL
+        return "Parts";
+    }
+
+    public String getWarehouseType() {
+        //warehose har 3 tryper
+        //Parts
+        //FinishedProducts
+        //FailedProducts
+
+        //Vi skal give maskinen en type når den laves
+        //
+
+        return "Parts";
+    }
+
 
     @Override
-    public void setMachineType(String machineType) {}
+    public void setMachineType(String machineType) {
+    }
 
     // IWarehouse
 
