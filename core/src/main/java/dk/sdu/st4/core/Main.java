@@ -10,13 +10,13 @@ public class Main {
         controller.connectMachine(1883).join();
         while(true) {
             System.out.println(controller.getStatus());
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             controller.executeOperation();
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             System.out.println(controller.getStatus());
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             controller.errorOperation();
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             System.out.println(controller.getStatus());
 
         }

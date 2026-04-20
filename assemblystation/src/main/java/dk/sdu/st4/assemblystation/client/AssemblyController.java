@@ -21,12 +21,6 @@ public class AssemblyController implements IConnect, IAssembly {
         model.broker = "localhost";
         model.port = 1883;
 
-        mqttClient = new MqttClient(
-                "tcp://" + model.broker + ":" + model.port,
-                UUID.randomUUID().toString(),
-                new MemoryPersistence()
-        );
-        mqttClient.setCallback(buildCallback());
     }
 
     private MqttCallback buildCallback() {
@@ -81,7 +75,7 @@ public class AssemblyController implements IConnect, IAssembly {
 
     @Override public void setOperationId(int id) {
 
-        String json = String.format("{\"ProcessID\": %s}", id);
+        String json = String.format("{\"ProcessID\": %d}", id);
         try {
             MqttMessage message = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
             mqttClient.publish("emulator/operation", message);
@@ -98,7 +92,7 @@ public class AssemblyController implements IConnect, IAssembly {
     }
 
     @Override public void errorOperation(){
-        setOperationId(9999);
+        setOperationId(1);
     }
 
     @Override public int getLastOperationId()        { return model.lastOperationId; }
@@ -136,7 +130,10 @@ public class AssemblyController implements IConnect, IAssembly {
         return CompletableFuture.runAsync(() -> {
             try {
                 MqttConnectOptions options = new MqttConnectOptions();
+
                 options.setCleanSession(true);
+                options.setKeepAliveInterval(60);
+                options.setAutomaticReconnect(true);
 
                 mqttClient = new MqttClient(
                         "tcp://" + model.broker + ":" + machineId,
@@ -145,8 +142,9 @@ public class AssemblyController implements IConnect, IAssembly {
                 );
                 mqttClient.setCallback(buildCallback());
                 mqttClient.connect(options);
+                subscribeAll();
                 System.out.println("Connected to " + model.broker + ":" + machineId);
-            } catch (MqttException e) {
+            } catch (MqttException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         });
