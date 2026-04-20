@@ -15,6 +15,11 @@ services:
     ports:
       - "8081:80"
 
+  st4-warehouse1:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8083:80"
+
   st4-assemblystation:
     image: thmork/st4-assemblystation:latest
     environment:
@@ -31,6 +36,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./SQL:/docker-entrypoint-initdb.d
 
 volumes:
   pgdata:

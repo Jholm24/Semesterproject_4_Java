@@ -18,9 +18,9 @@ import java.util.concurrent.CompletableFuture;
 
 public class WarehouseClient implements IWarehouse, IConnect {
 
-    //singleton pattern
     private static WarehouseClient instance;
     private static final ObjectMapper mapper = new ObjectMapper();
+    private final Map<Integer, IEmulatorService> connections = new HashMap<>();
     private final Map<Integer, Boolean> connectionState = new HashMap<>();
 
     //singleton pattern
@@ -38,10 +38,8 @@ public class WarehouseClient implements IWarehouse, IConnect {
     // IConnect
 
     @Override // method for adding Warehouse machines to the hashmap.
-    public void addMachine(int machineId, String url) {
-        String machineType = getMachineType();
-        // Timestamp createdAt = new Timestamp(new Date());
-
+    public void addMachine(int machineId, String url , String machineType) {
+        // Add machine to database.
         String sql = """
                 INSERT INTO warehouse_machines (machine_id, machine_type, url)
                 VALUES (?, ?, ?);
@@ -57,26 +55,39 @@ public class WarehouseClient implements IWarehouse, IConnect {
         }
     }
 
-    @Override // method for removing machines from the hashmap.
+    @Override
     public void removeMachine(int machineId) {
-//        connections.remove(machineId);
-//        endpoints.remove(machineId);
-//        connectionState.remove(machineId);
+        String sql = "DELETE FROM warehouse_machines WHERE machine_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, machineId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        connections.remove(machineId);
+        connectionState.remove(machineId);
     }
 
     @Override
     public CompletableFuture<Void> connectMachine(int machineId) {
         return CompletableFuture.runAsync(() -> {
-            try {
-                String url = endpoints.get(machineId);
+            String sql = "SELECT url FROM warehouse_machines WHERE machine_id = ?";
+            try (Connection conn = DBConnection.getInstance().getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, machineId);
+                ResultSet rs = stmt.executeQuery();
+                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineId);
+                String url = rs.getString("url");
+
                 IEmulatorService_Service factory = new IEmulatorService_Service(
                         new URL(url + "?wsdl"),
                         IEmulatorService_Service.SERVICE
                 );
-                IEmulatorService proxy = factory.getBasicHttpBindingIEmulatorService();
-                ((BindingProvider) proxy).getRequestContext() // bindingProvider used to override the hardcoded port, from generated code(Jakarta)
+                IEmulatorService warehouseService = factory.getBasicHttpBindingIEmulatorService();
+                ((BindingProvider) warehouseService).getRequestContext()
                         .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
-                connections.put(machineId, proxy);
+                connections.put(machineId, warehouseService);
                 connectionState.put(machineId, true);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to connect to warehouse " + machineId, e);
@@ -112,29 +123,15 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     @Override
     public String getMachineType() {
-        //Tjek igennem database for at finde maskinens URL
+        //Tjek igennem database for at finde maskinens URL HvaD SKAL DEN BRUGES TIL ALTSÅÅÅÅÅ
         return "Parts";
     }
-
-    public String getWarehouseType() {
-        //warehose har 3 tryper
-        //Parts
-        //FinishedProducts
-        //FailedProducts
-
-        //Vi skal give maskinen en type når den laves
-        //
-
-        return "Parts";
-    }
-
-
     @Override
     public void setMachineType(String machineType) {
+        // TODO
     }
 
     // IWarehouse
-
     @Override
     public void PickItem(int trayID, int machineID) {
         connections.get(machineID).pickItem(trayID);
