@@ -21,3 +21,8 @@ services:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
 
+  st4-assemblystation2:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1884

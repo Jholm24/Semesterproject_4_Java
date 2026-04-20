@@ -15,12 +15,10 @@ public class AssemblyController implements IConnect, IAssembly {
 
     private final AssemblyModel model;
     private MqttClient mqttClient;
-
-    public AssemblyController() throws MqttException {
+    public AssemblyController(int machineUrl) throws MqttException {
         model = new AssemblyModel();
         model.broker = "localhost";
-        model.port = 1883;
-
+        model.port = machineUrl;
     }
 
     private MqttCallback buildCallback() {

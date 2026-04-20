@@ -6,18 +6,13 @@ import static java.lang.Thread.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        AssemblyController controller = new AssemblyController();
-        controller.connectMachine(1883).join();
+        AssemblyController controller1 = new AssemblyController(1883);
+        AssemblyController controller2 = new AssemblyController(1884);
+        controller1.connectMachine(1883).join();
+        controller2.connectMachine(1884).join();
         while(true) {
-            System.out.println(controller.getStatus());
-            Thread.sleep(3000);
-            controller.executeOperation();
-            Thread.sleep(3000);
-            System.out.println(controller.getStatus());
-            Thread.sleep(3000);
-            controller.errorOperation();
-            Thread.sleep(3000);
-            System.out.println(controller.getStatus());
+            controller1.getOperation();
+            controller2.getOperation();
 
         }
     }
