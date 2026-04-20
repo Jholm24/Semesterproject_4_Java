@@ -19,19 +19,19 @@ import dk.sdu.st4.core.enums.AgvState;
 public class AgvStatus {
 
     /** Battery level in percent (0–100). */
-    @JsonProperty("Battery")
+    @JsonProperty("battery")
     private int battery;
 
     /** Name of the currently loaded (or last executed) program. */
-    @JsonProperty("Program name")
+    @JsonProperty("program name")
     private String programName;
 
     /** Current operational state of the AGV. */
-    @JsonProperty("State")
+    @JsonProperty("state")
     private AgvState state;
 
     /** Timestamp of the status snapshot as reported by the AGV. */
-    @JsonProperty("TimeStamp")
+    @JsonProperty("timestamp")
     private String timestamp;
 
     public AgvStatus() {}
