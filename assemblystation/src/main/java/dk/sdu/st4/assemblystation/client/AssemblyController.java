@@ -42,19 +42,20 @@ public class AssemblyController implements IConnect, IAssembly {
 
                 switch (topic) {
                     case "emulator/operation":
-                        System.out.println("Operation: " + payload);
+                        JsonObject jsonOperation = JsonParser.parseString(payload).getAsJsonObject();
                         break;
                     case "emulator/status":
-                        JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
-                        model.state = json.get("State").getAsInt();
-                        model.lastOperationId = json.get("LastOperation").getAsString();
-                        model.operationId = json.get("CurrentOperation").getAsString();
+                        JsonObject jsonStatus = JsonParser.parseString(payload).getAsJsonObject();
+                        model.state = jsonStatus.get("State").getAsInt();
+                        model.lastOperationId = jsonStatus.get("LastOperation").getAsString();
+                        model.operationId = jsonStatus.get("CurrentOperation").getAsString();
                         System.out.println("State: " + model.state);
                         System.out.println("CurrentOperation: " + model.operationId);
                         System.out.println("LastOperation: " + model.lastOperationId);
                         break;
                     case "emulator/checkhealth":
-                        System.out.println("Health: " + payload);
+                        JsonObject jsonHealth = JsonParser.parseString(payload).getAsJsonObject();
+                        model.isHealthy = jsonHealth.get("IsHealthy").getAsBoolean();
                         break;
                 }
             }
@@ -102,25 +103,21 @@ public class AssemblyController implements IConnect, IAssembly {
 
     @Override
     public int getStatus() throws MqttException, InterruptedException {
-        mqttClient.subscribe("emulator/status");
-
         return model.state;
     }
 
     @Override public boolean getHealth() throws MqttException, InterruptedException{
-        mqttClient.subscribe("emulator/checkhealth");
         return model.isHealthy;
     }
     @Override public String getOperation() throws MqttException, InterruptedException{
-        mqttClient.subscribe("emulator/operation");
-
         return model.operationId;
     }
 
-    @Override public void subscribeAll() throws MqttException, InterruptedException{
-        getStatus();
-        getHealth();
-        getOperation();
+    @Override
+    public void subscribeAll() throws MqttException, InterruptedException {
+        mqttClient.subscribe("emulator/status");
+        mqttClient.subscribe("emulator/checkhealth");
+        mqttClient.subscribe("emulator/operation");
     }
     @Override public String getLastOperation() { return model.lastOperationId; }
 
