@@ -7,8 +7,8 @@ public class AssemblyModel {
     // IAssembly
     public int state;
     public boolean isHealthy;
-    public String operationId;
-    public String lastOperationId;
+    public int operationId;
+    public int lastOperationId;
 
     // IConnect
     public int machineId;

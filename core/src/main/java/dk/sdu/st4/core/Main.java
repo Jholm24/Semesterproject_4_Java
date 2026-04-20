@@ -9,22 +9,16 @@ public class Main {
         AssemblyController controller = new AssemblyController();
         controller.connectMachine(1883).join();
         while(true) {
-           // controller.getStatus();
-            // controller.getOperation();
+            System.out.println(controller.getStatus());
+            Thread.sleep(1000);
             controller.executeOperation();
             Thread.sleep(1000);
             System.out.println(controller.getStatus());
             Thread.sleep(1000);
-            System.out.println(controller.getHealth());
-            //controller.getOperation();
-        /*    controller.executeOperation();
-            Thread.sleep(1000);
-            controller.getOperation();
-            Thread.sleep(1000);
             controller.errorOperation();
             Thread.sleep(1000);
-            controller.getOperation();
-            Thread.sleep(1000);*/
+            System.out.println(controller.getStatus());
+
         }
     }
 }

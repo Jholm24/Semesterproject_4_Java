@@ -6,16 +6,15 @@ public interface IAssembly {
     boolean isHealthy();
     void setHealthy(boolean isHealthy);
 
-    String getOperationId();
-    void setOperationId(String operationId);
+    int getOperationId();
+    void setOperationId(int operationId);
 
-    String getLastOperationId();
-    void setLastOperationId (String lastOperationId)  ;
+    int getLastOperationId();
 
     int getStatus() throws Exception;
     boolean getHealth() throws Exception;
-    String getOperation() throws Exception;
-    String getLastOperation();
+    int getOperation() throws Exception;
+    int getLastOperation();
     void subscribeAll() throws Exception;
     void executeOperation();
     void errorOperation();

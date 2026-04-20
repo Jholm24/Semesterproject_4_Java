@@ -47,8 +47,8 @@ public class AssemblyController implements IConnect, IAssembly {
                     case "emulator/status":
                         JsonObject jsonStatus = JsonParser.parseString(payload).getAsJsonObject();
                         model.state = jsonStatus.get("State").getAsInt();
-                        model.lastOperationId = jsonStatus.get("LastOperation").getAsString();
-                        model.operationId = jsonStatus.get("CurrentOperation").getAsString();
+                        model.lastOperationId = jsonStatus.get("LastOperation").getAsInt();
+                        model.operationId = jsonStatus.get("CurrentOperation").getAsInt();
                         System.out.println("State: " + model.state);
                         System.out.println("CurrentOperation: " + model.operationId);
                         System.out.println("LastOperation: " + model.lastOperationId);
@@ -66,16 +66,20 @@ public class AssemblyController implements IConnect, IAssembly {
     }
 
     // --- IAssembly getters/setters ---
-    @Override public int getState()                  { return model.state; }
-    @Override public void setState(int state)        { model.state = state; }
-
-    @Override public boolean isHealthy()             { return model.isHealthy; }
-    @Override public void setHealthy(boolean h)      { model.isHealthy = h; }
-
-    @Override public String getOperationId()            {
+    @Override public int getState()                  {
+        return model.state;
+    }
+    @Override public int getOperationId()            {
         return model.operationId;
     }
-    @Override public void setOperationId(String id) {
+    @Override public boolean isHealthy()             {
+        return model.isHealthy;
+    }
+    @Override public void setState(int state)        { model.state = state; }
+
+    @Override public void setHealthy(boolean h)      { model.isHealthy = h; }
+
+    @Override public void setOperationId(int id) {
 
         String json = String.format("{\"ProcessID\": %s}", id);
         try {
@@ -84,22 +88,20 @@ public class AssemblyController implements IConnect, IAssembly {
         } catch (MqttException e){
             e.printStackTrace();
         }
-
     }
 
     //Random operation number so we can show different operations
     @Override public void executeOperation(){
         Random r = new Random();
         int number = r.nextInt(9998) + 1;
-        setOperationId(String.valueOf(number));
+        setOperationId(number);
     }
 
     @Override public void errorOperation(){
-        setOperationId("9999");
+        setOperationId(9999);
     }
 
-    @Override public String getLastOperationId()        { return model.lastOperationId; }
-    @Override public void setLastOperationId(String id) { model.lastOperationId = id; }
+    @Override public int getLastOperationId()        { return model.lastOperationId; }
 
     @Override
     public int getStatus() throws MqttException, InterruptedException {
@@ -109,7 +111,7 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override public boolean getHealth() throws MqttException, InterruptedException{
         return model.isHealthy;
     }
-    @Override public String getOperation() throws MqttException, InterruptedException{
+    @Override public int getOperation() throws MqttException, InterruptedException{
         return model.operationId;
     }
 
@@ -119,7 +121,7 @@ public class AssemblyController implements IConnect, IAssembly {
         mqttClient.subscribe("emulator/checkhealth");
         mqttClient.subscribe("emulator/operation");
     }
-    @Override public String getLastOperation() { return model.lastOperationId; }
+    @Override public int getLastOperation() { return model.lastOperationId; }
 
     // --- IConnect getters/setters ---
     @Override public int getMachineId()               { return model.machineId; }
@@ -154,10 +156,5 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override public void removeMachine(int machineId) {}
     @Override public void disconnectMachine(int machineId) {}
     @Override public boolean isConnected(int machineId) { return mqttClient.isConnected(); }
-
-    public void sendCommand(String command) throws MqttException {
-        MqttMessage message = new MqttMessage(command.getBytes(StandardCharsets.UTF_8));
-        mqttClient.publish("assembly/" + model.machineId + "/command", message);
-    }
 
 }
