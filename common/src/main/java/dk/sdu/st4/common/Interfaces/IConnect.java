@@ -9,7 +9,7 @@ public interface IConnect {
     String getMachineType();
     void setMachineType(String machineType);
 
-    void addMachine(int machineId, String machineType);
+    void addMachine(int machineId, String url , String machineType);
     void removeMachine(int machineId);
     CompletableFuture<Void> connectMachine(int machineId);
     void disconnectMachine(int machineId);

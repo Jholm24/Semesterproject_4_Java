@@ -18,7 +18,5 @@ module dk.sdu.st4.core {
     exports dk.sdu.st4.core.model;
     exports dk.sdu.st4.core.enums;
 
-    // Open model to all modules for Jackson reflection.
-    // Restrict with "opens ... to com.fasterxml.jackson.databind" if stricter encapsulation is desired.
     opens dk.sdu.st4.core.model;
 }

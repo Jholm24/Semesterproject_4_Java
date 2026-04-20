@@ -5,17 +5,95 @@ services:
       - "1883:1883"
       - "9001:9001"
 
-  st4-agv:
+  # ---------------------------------------------------------------------------
+  # AGV instances (5) — host ports 8082-8086 → container port 80
+  # ---------------------------------------------------------------------------
+  st4-agv-1:
     image: thmork/st4-agv:latest
     ports:
       - "8082:80"
 
-  st4-warehouse:
+  st4-agv-2:
+    image: thmork/st4-agv:latest
+    ports:
+      - "8083:80"
+
+  st4-agv-3:
+    image: thmork/st4-agv:latest
+    ports:
+      - "8084:80"
+
+  st4-agv-4:
+    image: thmork/st4-agv:latest
+    ports:
+      - "8085:80"
+
+  st4-agv-5:
+    image: thmork/st4-agv:latest
+    ports:
+      - "8086:80"
+
+  # ---------------------------------------------------------------------------
+  # Warehouse instances (6) — host ports 8087-8092 → container port 80
+  # ---------------------------------------------------------------------------
+  st4-warehouse-1-defect:
     image: thmork/st4-warehouse:latest
     ports:
-      - "8081:80"
+      - "8087:80"
 
-  st4-assemblystation:
+  st4-warehouse-2-defect:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8088:80"
+
+  st4-warehouse-3-defect:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8089:80"
+
+  st4-warehouse-4-defect:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8090:80"
+
+  st4-warehouse-5-defect:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8091:80"
+
+  st4-warehouse-6-defect:
+    image: thmork/st4-warehouse:latest
+    ports:
+      - "8092:80"
+
+  # ---------------------------------------------------------------------------
+  # Assembly Station instances (5) — no host ports; communicate via MQTT broker
+  # ---------------------------------------------------------------------------
+  st4-assemblystation-1:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
+
+  st4-assemblystation-2:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
+
+  st4-assemblystation-3:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
+
+  st4-assemblystation-4:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
+
+  st4-assemblystation-5:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
@@ -31,6 +109,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
   pgdata:
+
