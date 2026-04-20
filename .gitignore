@@ -168,6 +168,7 @@ _ReSharper*/
 *.ldf
 *.sqlite
 *.db
+db.properties
 
 ##############################
 # Azure / publish profiles
