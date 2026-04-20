@@ -1,3 +1,5 @@
+const API_BASE = 'http://localhost:8080';
+
 const MACHINE_TYPES = {
   warehouse: {
     id: 'warehouse', label: 'Warehouse', accent: 'var(--c-wh)', accentSoft: 'var(--c-wh-soft)',
@@ -114,7 +116,21 @@ function ManagerDashboard({ nav }) {
     return idx;
   }, []);
   const liveOverrides = L.overrides || {};
-  const machines = machineIds.map(id => ({ ...(poolIndex[id] || {}), ...(liveOverrides[id] || {}) })).filter(m => m.id);
+  const machines = machineIds.map(id => {
+    const base = { ...(poolIndex[id] || {}), ...(liveOverrides[id] || {}) };
+    // Overlay real AGV telemetry when backend is online
+    if (backendOnline && apiStatus?.agv && base.type === 'agv') {
+      const agv = apiStatus.agv;
+      return {
+        ...base,
+        battery:    agv.battery,
+        stateLabel: agv.state === 'Idle' ? 'Idle' : agv.state === 'Executing' ? 'Running' : agv.state,
+        status:     agv.state === 'Idle' ? 'idle' : 'active',
+        _program:   agv.program,
+      };
+    }
+    return base;
+  }).filter(m => m.id);
 
   // which ids are claimed across ALL lines
   const occupiedIds = useMemo(() => {
@@ -156,6 +172,46 @@ function ManagerDashboard({ nav }) {
     return () => clearInterval(id);
   }, [lineStatus, currentLine.id, poolIndex]);
 
+  // ── Live backend polling ────────────────────────────────────────────────
+  const [apiStatus, setApiStatus] = useState(null);
+  const [backendOnline, setBackendOnline] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/status');
+        if (!res.ok) throw new Error('non-2xx');
+        const data = await res.json();
+        if (!active) return;
+        setApiStatus(data);
+        setBackendOnline(true);
+        // Sync line status from backend when it diverges
+        if (data.lineStatus && data.lineStatus !== lineStatus) {
+          patchLine({ status: data.lineStatus });
+        }
+      } catch { if (active) setBackendOnline(false); }
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => { active = false; clearInterval(id); };
+  }, [lineStatus, currentLine.id]);
+
+  // Poll event log from backend
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/events');
+        if (!res.ok) throw new Error('non-2xx');
+        const evts = await res.json();
+        if (active && evts.length > 0) patchLine({ log: evts.slice(0, 10) });
+      } catch { /* backend offline — keep local log */ }
+    };
+    const id = setInterval(poll, 2000);
+    return () => { active = false; clearInterval(id); };
+  }, [currentLine.id]);
+
   const addMachineById = (poolId) => {
     if (!poolId) return;
     if (machineIds.includes(poolId)) return;
@@ -163,13 +219,22 @@ function ManagerDashboard({ nav }) {
   };
   const removeMachine = (id) => setMachines(ids => ids.filter(x => x !== id));
 
-  const doControl = (cmd) => {
+  const doControl = async (cmd) => {
     const now = new Date();
     const t = now.toTimeString().slice(0,8);
-    if (cmd === 'start') { setLineStatus('running'); setLog(l => [{t, lvl:'ok', m: 'Line started — production queue initiated'}, ...l].slice(0,12)); }
-    if (cmd === 'pause') { setLineStatus('paused'); setLog(l => [{t, lvl:'info', m: 'Line paused'}, ...l].slice(0,12)); }
-    if (cmd === 'stop') { setLineStatus('stopped'); setLog(l => [{t, lvl:'warn', m: 'Line stopped — parked in safe state'}, ...l].slice(0,12)); }
+    // Optimistic local update so the UI feels instant
+    if (cmd === 'start') { setLineStatus('running'); setLog(l => [{t, lvl:'ok',   m: 'Line started — production queue initiated'}, ...l].slice(0,12)); }
+    if (cmd === 'pause') { setLineStatus('paused');  setLog(l => [{t, lvl:'info', m: 'Line paused'}, ...l].slice(0,12)); }
+    if (cmd === 'stop')  { setLineStatus('stopped'); setLog(l => [{t, lvl:'warn', m: 'Line stopped — parked in safe state'}, ...l].slice(0,12)); }
     if (cmd === 'abort') { patchLine({ status: 'alarm', warnings: (L.warnings||0)+1, log: [{t, lvl:'err', m: 'ABORT — emergency stop engaged'}, ...L.log].slice(0,12) }); }
+    // Send command to backend (fire-and-forget; backend is authoritative)
+    try {
+      await fetch(API_BASE + '/api/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: cmd }),
+      });
+    } catch { /* backend offline — local state already updated above */ }
   };
 
   const grouped = { warehouse: [], agv: [], assembly: [] };
@@ -180,9 +245,9 @@ function ManagerDashboard({ nav }) {
   return (
     <main className="dash">
       <div className="dash-main">
-        <StatsBar cycles={cycles} success={success} warnings={warnings} lineStatus={lineStatus} currentLine={currentLine} />
+        <StatsBar cycles={cycles} success={success} warnings={warnings} lineStatus={lineStatus} currentLine={currentLine} backendOnline={backendOnline} />
         <ComponentManager grouped={grouped} available={availableByType} onAdd={addMachineById} />
-        <MachineGrid grouped={grouped} removeMachine={removeMachine} lineStatus={lineStatus} onOpen={(m) => setOpenMachine(m)} />
+        <MachineGrid grouped={grouped} removeMachine={removeMachine} lineStatus={lineStatus} onOpen={(m) => setOpenMachine(m)} backendOnline={backendOnline} />
         <EventLog log={log} />
       </div>
       <aside className="dash-aside">
@@ -200,7 +265,7 @@ function ManagerDashboard({ nav }) {
   );
 }
 
-function StatsBar({ cycles, success, warnings, lineStatus, currentLine }) {
+function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendOnline }) {
   const statusLabels = { standby:'Standby', running:'Running', paused:'Paused', stopped:'Stopped', alarm:'ALARM', idle:'Idle' };
   return (
     <section className="stats-bar">
@@ -210,10 +275,16 @@ function StatsBar({ cycles, success, warnings, lineStatus, currentLine }) {
           <h1 className="sec-title">Process Overview</h1>
           {currentLine && <div className="sec-sub mono">Producing → {currentLine.product}</div>}
         </div>
-        <div className={`line-status line-status-${lineStatus}`}>
-          <span className="ls-pulse"/>
-          <span className="mono ls-label">STATUS</span>
-          <span className="ls-value">{statusLabels[lineStatus] || lineStatus}</span>
+        <div style={{display:'flex', gap:10, alignItems:'center'}}>
+          <div className="lf-chip" style={{fontSize:10}}>
+            <span className={`dot ${backendOnline ? 'dot-ok' : ''}`}/>
+            {backendOnline ? 'Backend · LIVE' : 'Backend · offline'}
+          </div>
+          <div className={`line-status line-status-${lineStatus}`}>
+            <span className="ls-pulse"/>
+            <span className="mono ls-label">STATUS</span>
+            <span className="ls-value">{statusLabels[lineStatus] || lineStatus}</span>
+          </div>
         </div>
       </div>
       <div className="stats-grid">
@@ -390,8 +461,8 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
           </div>
           <div className="mcard-bar"><div className="mcard-bar-fill" style={{width: machine.battery+'%'}}/></div>
           <div className="mcard-meta mono">
-            <span>PROG · MoveToAssembly</span>
-            <span>POS · B·02</span>
+            <span>PROG · {machine._program || 'MoveToAssembly'}</span>
+            <span>{machine._program ? 'LIVE' : 'POS · B·02'}</span>
           </div>
         </div>
       )}
@@ -503,7 +574,7 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove }) {
   ] : machine.type === 'agv' ? [
     { k: 'STATE',       v: machine.stateLabel },
     { k: 'BATTERY',     v: Math.round(machine.battery) + '%' },
-    { k: 'PROGRAM',     v: 'MoveToAssembly' },
+    { k: 'PROGRAM',     v: machine._program || 'MoveToAssembly' },
     { k: 'POSITION',    v: 'B · 02' },
     { k: 'SPEED',       v: '0.8 m/s' },
     { k: 'PROTOCOL',    v: 'REST · :8082' },
