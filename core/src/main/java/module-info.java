@@ -13,13 +13,9 @@
  * them when serialising/deserialising in the common and component modules.
  */
 module dk.sdu.st4.core {
-    requires java.sql;
     exports dk.sdu.st4.core.model;
     exports dk.sdu.st4.core.enums;
     exports dk.sdu.st4.core.exception;
 
-    // Open model to all modules for Jackson reflection.
-    // Restrict with "opens ... to com.fasterxml.jackson.databind" if stricter encapsulation is desired.
     opens dk.sdu.st4.core.model;
-    exports dk.sdu.st4.core.db;
 }

@@ -1,6 +1,6 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dk.sdu.st4.core.db.DBConnection;
+import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.warehouse.service.IEmulatorService;
 import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
 import dk.sdu.st4.common.Interfaces.IWarehouse;

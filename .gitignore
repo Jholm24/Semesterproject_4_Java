@@ -101,7 +101,6 @@ yarn-error.log*
 # Environment files / secrets
 ##############################
 .env
-.env.*
 appsettings.Development.json
 secrets.json
 

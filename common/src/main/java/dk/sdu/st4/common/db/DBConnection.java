@@ -1,4 +1,4 @@
-package dk.sdu.st4.core.db;
+package dk.sdu.st4.common.db;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -8,9 +8,9 @@ public class DBConnection {
 
     private static DBConnection instance;
 
-    private static final String URL = "jdbc:postgresql://localhost:5432/skateboardas";
-    private static final String USER = "skateboardas";
-    private static final String PASSWORD = "skateboardas";
+    private static final String URL = System.getenv().getOrDefault("DB_URL", "change_me_in_Env");
+    private static final String USER = System.getenv().getOrDefault("DB_USER", "change_me_in_Env");
+    private static final String PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", "change_me_in_Env");
 
     private Connection connection;
 
