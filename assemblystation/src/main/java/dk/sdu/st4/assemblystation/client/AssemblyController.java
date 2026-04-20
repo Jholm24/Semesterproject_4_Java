@@ -8,6 +8,8 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class AssemblyController implements IConnect, IAssembly {
 
@@ -43,8 +45,13 @@ public class AssemblyController implements IConnect, IAssembly {
                         System.out.println("Operation: " + payload);
                         break;
                     case "emulator/status":
-                        model.isHealthy = payload.equals("healthy");
-                        System.out.println("Status: " + payload);
+                        JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
+                        model.state = json.get("State").getAsInt();
+                        model.lastOperationId = json.get("LastOperation").getAsString();
+                        model.operationId = json.get("CurrentOperation").getAsString();
+                        System.out.println("State: " + model.state);
+                        System.out.println("CurrentOperation: " + model.operationId);
+                        System.out.println("LastOperation: " + model.lastOperationId);
                         break;
                     case "emulator/checkhealth":
                         System.out.println("Health: " + payload);
@@ -96,6 +103,7 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override
     public int getStatus() throws MqttException, InterruptedException {
         mqttClient.subscribe("emulator/status");
+
         return model.state;
     }
 
