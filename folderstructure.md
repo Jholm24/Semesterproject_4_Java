@@ -64,7 +64,7 @@ Semesterproject_4_Java/
 │       ├── module-info.java                    # requires java.net.http, java.xml
 │       └── dk/sdu/st4/warehouse/
 │           ├── client/
-│           │   └── WarehouseClient.java        # Manual SOAP envelope builder + HTTP POST
+│           │   └── dk.sdu.st4.warehouse.service.WarehouseClient.java        # Manual SOAP envelope builder + HTTP POST
 │           └── service/
 │               └── WarehouseServiceImpl.java   # implements IWarehouseService
 │
