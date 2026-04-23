@@ -39,6 +39,10 @@
                 <version>3.2.0</version>
                 <configuration>
                     <mainClass>dk.sdu.st4.core.server.Main</mainClass>
+                    <jvmArgs>
+                        <jvmArg>--add-reads</jvmArg>
+                        <jvmArg>dk.sdu.st4.core=ALL-UNNAMED</jvmArg>
+                    </jvmArgs>
                 </configuration>
             </plugin>
         </plugins>
