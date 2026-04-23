@@ -5,5 +5,5 @@ module dk.sdu.st4.common {
     exports dk.sdu.st4.common.config;
     exports dk.sdu.st4.common.db;
     exports dk.sdu.st4.common.util;
-    exports dk.sdu.st4.common.Interfaces;
+    exports dk.sdu.st4.common.services;
 }

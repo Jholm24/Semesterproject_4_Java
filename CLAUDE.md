@@ -56,7 +56,7 @@ core  (entry point — Main + Orchestrator + ApiServer + React UI)
  └──> common (no module-info) ──> IAgv, IWarehouse, IAssembly, IConnect, data models, AppConfig
 
 agv           ──> common      (AgvClient + AgvServiceImpl — FULLY IMPLEMENTED)
-warehouse     ──> common      (WarehouseClient via CXF stubs — FULLY IMPLEMENTED)
+warehouse     ──> common      (dk.sdu.st4.warehouse.service.WarehouseClient via CXF stubs — FULLY IMPLEMENTED)
 assemblystation ──> common    (module-info.java only — NOT IMPLEMENTED)
 
 app  (does not exist yet — must be created with ProductionOrchestrator)
@@ -71,7 +71,7 @@ app  (does not exist yet — must be created with ProductionOrchestrator)
 | `core` | `dk.sdu.st4.core.server` | HTTP server (`ApiServer` on port 8080), production cycle (`Orchestrator`), and React UI static files in `core/ui/`. Entry point is `Main`. |
 | `common` | `dk.sdu.st4.common` | No `module-info.java`. Contains `AppConfig` (endpoint/topic constants), `JsonUtil` (Jackson wrapper), data models (`AgvStatus`, `AssemblyStatus`, `HealthCheckResult`, `WarehouseInventory`), enums (`AgvState`, `AgvProgram`, `AssemblyState`, `WarehouseState`), and service interfaces in `common.Interfaces` (`IAgv`, `IWarehouse`, `IAssembly`, `IConnect`). |
 | `agv` | `dk.sdu.st4.agv` | `AgvClient` (HTTP GET/PUT via `java.net.http`) + `AgvServiceImpl` implements `IAgv`. |
-| `warehouse` | `dk.sdu.st4.warehouse` | `WarehouseClient` (in **default package**) implements `IWarehouse` using Apache CXF JAX-WS stubs generated from the live WSDL at build time. |
+| `warehouse` | `dk.sdu.st4.warehouse` | `dk.sdu.st4.warehouse.service.WarehouseClient` (in **default package**) implements `IWarehouse` using Apache CXF JAX-WS stubs generated from the live WSDL at build time. |
 | `assemblystation` | `dk.sdu.st4.assemblystation` | Only `module-info.java` exists — client and service implementation not yet written. |
 | `app` | `dk.sdu.st4.app` | **Does not exist.** Must be created as a Maven module, added to the parent `pom.xml` `<modules>` list, and contain `Main` + `ProductionOrchestrator`. |
 
@@ -155,7 +155,7 @@ Two-step: `loadProgram()` then `executeProgram()`, poll `getStatus()` until `Agv
 `AssemblyState` constants are UPPER_CASE: `IDLE` (0), `EXECUTING` (1), `ERROR` (2).
 
 ### Warehouse SOAP client
-`WarehouseClient` (in the **default package** in `warehouse/src/main/java/`) is backed by Apache CXF. The CXF codegen plugin runs `wsdl2java` against the live endpoint during `generate-sources`, placing stubs in `dk.sdu.st4.warehouse.service`. **Docker must be running** when building the `warehouse` module from scratch.
+`dk.sdu.st4.warehouse.service.WarehouseClient` (in the **default package** in `warehouse/src/main/java/`) is backed by Apache CXF. The CXF codegen plugin runs `wsdl2java` against the live endpoint during `generate-sources`, placing stubs in `dk.sdu.st4.warehouse.service`. **Docker must be running** when building the `warehouse` module from scratch.
 
 ### Error handling
 Interface methods declare `throws Exception`. No custom exception classes — use `Exception` directly and propagate.
