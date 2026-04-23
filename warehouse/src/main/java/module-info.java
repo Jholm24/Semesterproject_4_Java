@@ -1,3 +1,6 @@
+import dk.sdu.st4.common.services.IConnect;
+import dk.sdu.st4.common.services.IWarehouse;
+
 /**
  * Warehouse module — SOAP client component.
  * <p>
@@ -22,5 +25,7 @@ module dk.sdu.st4.warehouse {
     requires dk.sdu.st4.common;
     requires org.glassfish.jaxb.core;
     requires java.sql;
+    provides IConnect with dk.sdu.st4.warehouse.service.WarehouseConnect;
+    // provides IWarehouse with dk.sdu.st4.warehouse.service.WarehouseClient; (Skal lige finde ud af hvordan det her gøres ordenligt.)
 
 }
