@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS machines;
 CREATE TABLE IF NOT EXISTS machines (
     machineSerialNumber   INT PRIMARY KEY UNIQUE NOT NULL,
     type        VARCHAR(32)  NOT NULL,

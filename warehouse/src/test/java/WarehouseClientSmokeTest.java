@@ -3,8 +3,8 @@ public class WarehouseClientSmokeTest {
     public static void main(String[] args) throws Exception {
         WarehouseClient client = WarehouseClient.getInstance();
 
-        int machineSerialNumber = 1; // ændre værdi for at tilføje andre
-        String base_url = "http://localhost:8087/Service.asmx"; // ændre værdi for at tilføje andre
+        int machineSerialNumber = 500; // ændre værdi for at tilføje andre
+        String base_url = "http://localhost:8081/Service.asmx"; // ændre værdi for at tilføje andre
         String type = "warehouse";
         String variant = "parts";
 

@@ -58,7 +58,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     @Override
     public void removeMachine(int machineSerialNumber) {
-        String sql = "DELETE FROM warehouse_machines WHERE machineSerialNumber = ?";
+        String sql = "DELETE FROM machines WHERE machineSerialNumber = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, machineSerialNumber);
@@ -73,13 +73,13 @@ public class WarehouseClient implements IWarehouse, IConnect {
     @Override
     public CompletableFuture<Void> connectMachine(int machineSerialNumber) {
         return CompletableFuture.runAsync(() -> {
-            String sql = "SELECT url FROM warehouse_machines WHERE machineSerialNumber = ?";
+            String sql = "SELECT base_url FROM machines WHERE machineSerialNumber = ?";
             try (Connection conn = DBConnection.getInstance().getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, machineSerialNumber);
                 ResultSet rs = stmt.executeQuery();
                 if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineSerialNumber);
-                String url = rs.getString("url");
+                String url = rs.getString("base_url");
 
                 IEmulatorService_Service factory = new IEmulatorService_Service(
                         new URL(url + "?wsdl"),
