@@ -12,7 +12,6 @@
 
     <artifactId>warehouse</artifactId>
     <name>ST4 Warehouse — SOAP Client Component</name>
-
     <dependencies>
         <dependency>
             <groupId>dk.sdu.st4</groupId>

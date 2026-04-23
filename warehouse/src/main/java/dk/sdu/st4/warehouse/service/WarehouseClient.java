@@ -1,4 +1,4 @@
-package dk.sdu.st4.warehouse;
+package dk.sdu.st4.warehouse.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

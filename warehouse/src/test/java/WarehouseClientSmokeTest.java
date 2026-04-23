@@ -1,4 +1,4 @@
-import dk.sdu.st4.warehouse.WarehouseClient;
+import dk.sdu.st4.warehouse.service.WarehouseClient;
 public class WarehouseClientSmokeTest {
 
     public static void main(String[] args) throws Exception {
