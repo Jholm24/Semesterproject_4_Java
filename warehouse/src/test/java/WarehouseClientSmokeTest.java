@@ -3,21 +3,25 @@ public class WarehouseClientSmokeTest {
     public static void main(String[] args) throws Exception {
         WarehouseClient client = WarehouseClient.getInstance();
 
-        int machineId = 1; // ændre værdi for at tilføje andre
-        String url = "http://localhost:8081/Service.asmx"; // ændre værdi for at tilføje andre
+        int machineSerialNumber = 1; // ændre værdi for at tilføje andre
+        String base_url = "http://localhost:8087/Service.asmx"; // ændre værdi for at tilføje andre
+        String type = "warehouse";
+        String variant = "parts";
+
+
 
         System.out.println("--- Tilføjer maskine til DB ---");
-        client.addMachine(machineId, url, "Parts");
+        client.addMachine(machineSerialNumber,type,variant, base_url);
 
         System.out.println("--- Connecter til maskine ---");
-        client.connectMachine(machineId).get(); // .get() venter på CompletableFuture
+        client.connectMachine(machineSerialNumber).get(); // .get() venter på CompletableFuture
 
-        System.out.println("--- Er connected: " + client.isConnected(machineId) + " ---");
+        System.out.println("--- Er connected: " + client.isConnected(machineSerialNumber) + " ---");
 
         System.out.println("--- Henter inventory ---");
-        client.GetInventory(machineId);
+        client.GetInventory(machineSerialNumber);
 
-        System.out.println("--- GetState: " + client.GetState(machineId) + " ---");
+        System.out.println("--- GetState: " + client.GetState(machineSerialNumber) + " ---");
 
         System.out.println("--- Smoke test OK ---");
     }
