@@ -1,7 +1,7 @@
 package dk.sdu.st4.agv.client;
 
 import dk.sdu.st4.common.util.JsonUtil;
-import dk.sdu.st4.core.model.AgvStatus;
+import dk.sdu.st4.common.data.AgvStatus;
 
 import java.net.URI;
 import java.net.http.HttpClient;

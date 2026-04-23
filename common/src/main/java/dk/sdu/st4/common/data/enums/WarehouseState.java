@@ -1,4 +1,4 @@
-package dk.sdu.st4.core.enums;
+package dk.sdu.st4.common.data.enums;
 
 /**
  * Operational states reported by the Warehouse SOAP service.

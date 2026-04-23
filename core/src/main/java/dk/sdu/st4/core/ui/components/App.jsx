@@ -18,11 +18,11 @@ function App() {
 
   return (
     <div className="app-root" data-screen-label={
-      view === 'login' ? '01 Login' :
-      view === 'dashboard' ? (role === 'manager' ? '02 Manager Dashboard' : '02 Operator Dashboard') :
-      view === 'builder' ? '03 Task Builder' :
-      view === 'employees' ? '04 Employees' :
-      view === 'lines' ? '05 Production Lines' : view
+      view === 'login' ? 'Login' :
+      view === 'dashboard' ? (role === 'manager' ? 'Manager Dashboard' : 'Operator Dashboard') :
+      view === 'builder' ? 'Task Builder' :
+      view === 'employees' ? 'Employees' :
+      view === 'lines' ? 'Production Lines' : view
     }>
       {view === 'login' && <Login nav={nav} />}
       {view !== 'login' && (

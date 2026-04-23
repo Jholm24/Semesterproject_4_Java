@@ -2,9 +2,9 @@ package dk.sdu.st4.agv.service;
 
 import dk.sdu.st4.agv.client.AgvClient;
 import dk.sdu.st4.common.config.AppConfig;
-import dk.sdu.st4.core.enums.AgvProgram;
-import dk.sdu.st4.core.model.AgvStatus;
-import dk.sdu.st4.common.Interfaces.IAgv;
+import dk.sdu.st4.common.data.enums.AgvProgram;
+import dk.sdu.st4.common.data.AgvStatus;
+import dk.sdu.st4.common.services.IAgv;
 
 /**
  * REST-backed implementation of {@link IAgv}.

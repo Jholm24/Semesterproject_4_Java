@@ -2,7 +2,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.sdu.st4.warehouse.service.IEmulatorService;
 import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
-import dk.sdu.st4.common.Interfaces.IWarehouse;
+import dk.sdu.st4.common.services.IWarehouse;
 public class WarehouseClient implements IWarehouse {
     private final IEmulatorService port;
     private final ObjectMapper mapper = new ObjectMapper();
