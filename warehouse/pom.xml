@@ -9,7 +9,7 @@
         <artifactId>semesterproject-4</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-
+    <packaging>jar</packaging>
     <artifactId>warehouse</artifactId>
     <name>ST4 Warehouse — SOAP Client Component</name>
 
