@@ -14,14 +14,9 @@
     <name>ST4 Common — Configuration &amp; Shared Utilities</name>
 
     <dependencies>
-        <!-- Jackson for JSON serialisation/deserialisation -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
-            <artifactId>core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -42,13 +37,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <Automatic-Module-Name>dk.sdu.st4.common</Automatic-Module-Name>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
             </plugin>
         </plugins>
     </build>

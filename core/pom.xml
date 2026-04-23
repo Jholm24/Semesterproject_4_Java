@@ -14,33 +14,23 @@
     <name>ST4 Core — Domain Models, Interfaces &amp; Exceptions</name>
 
     <dependencies>
-        <!-- Jackson annotations only — lightweight, no runtime deps. Needed for @JsonProperty/@JsonCreator on domain models. -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>21</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>21</version>
+            <groupId>dk.sdu.st4</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <mainClass>dk.sdu.st4.core/dk.sdu.st4.core.ui.Main</mainClass>
+                    <compilerArgs>
+                        <arg>--add-reads</arg>
+                        <arg>dk.sdu.st4.core=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

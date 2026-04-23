@@ -1,7 +1,7 @@
 package dk.sdu.st4.agv.service;
 
 import dk.sdu.st4.common.config.AppConfig;
-import dk.sdu.st4.core.model.AgvStatus;
+import dk.sdu.st4.common.data.AgvStatus;
 import org.junit.jupiter.api.Test;
 
 /**

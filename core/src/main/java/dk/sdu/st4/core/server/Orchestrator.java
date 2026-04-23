@@ -1,7 +1,7 @@
 package dk.sdu.st4.core.server;
 
-import dk.sdu.st4.core.enums.AgvProgram;
-import dk.sdu.st4.core.enums.AgvState;
+import dk.sdu.st4.common.data.enums.AgvProgram;
+import dk.sdu.st4.common.data.enums.AgvState;
 
 import java.net.URI;
 import java.net.http.HttpClient;
