@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS machines (
-machineSerialNumber   INT PRIMARY KEY UNIQUE NOT NULL,
+machineSerialNumber   INT PRIMARY KEY,
 type        VARCHAR(32)  NOT NULL,
 variant     VARCHAR(32),
 base_url    VARCHAR(256) UNIQUE,
