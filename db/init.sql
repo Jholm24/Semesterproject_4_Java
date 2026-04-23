@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS machines (
 machineSerialNumber   INT PRIMARY KEY UNIQUE NOT NULL,
 type        VARCHAR(32)  NOT NULL,
 variant     VARCHAR(32),
-base_url    VARCHAR(256),
+base_url    VARCHAR(256) UNIQUE,
 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -4,10 +4,10 @@ public class WarehouseClientSmokeTest {
     public static void main(String[] args) throws Exception {
         WarehouseClient client = WarehouseClient.getInstance();
 
-        int machineSerialNumber = 420; // ændre værdi for at tilføje andre
+        int machineSerialNumber = 42069; // ændre værdi for at tilføje andre
         String base_url = "http://localhost:8087/Service.asmx"; // ændre værdi for at tilføje andre
         String type = "warehouse";
-        String variant = "parts";
+        String variant = "Parts";
 
 
 
