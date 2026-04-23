@@ -1,6 +1,7 @@
 import dk.sdu.st4.warehouse.WarehouseClient;
 
 public class WarehouseClientSmokeTest {
+    //smoketest to see if we can write and read from warehouse.
 
     public static void main(String[] args) throws Exception {
         WarehouseClient client = WarehouseClient.getInstance();
