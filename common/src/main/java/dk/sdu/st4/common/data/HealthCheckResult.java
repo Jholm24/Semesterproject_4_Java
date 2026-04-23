@@ -1,21 +1,9 @@
-package dk.sdu.st4.core.model;
+package dk.sdu.st4.common.data;
 
-/**
- * Quality-control result published by the Assembly Station on MQTT topic
- * {@code emulator/checkhealth} after an assembly process completes.
- *
- * A result is always healthy for simulated processes unless ProcessID {@code 9999}
- * was used to trigger a deliberate unhealthy outcome.
- */
 public class HealthCheckResult {
 
-    /** {@code true} if the assembled product passed quality control. */
     private boolean healthy;
-
-    /** Process ID of the assembly operation this result belongs to. */
     private int processId;
-
-    /** Timestamp of the health-check publication. */
     private String timestamp;
 
     public HealthCheckResult() {}

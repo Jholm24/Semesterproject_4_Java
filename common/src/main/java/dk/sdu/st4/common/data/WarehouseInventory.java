@@ -1,32 +1,13 @@
-package dk.sdu.st4.core.model;
+package dk.sdu.st4.common.data;
 
-import dk.sdu.st4.core.enums.WarehouseState;
+import dk.sdu.st4.common.data.enums.WarehouseState;
 
 import java.util.Map;
 
-/**
- * Inventory snapshot returned by the Warehouse SOAP {@code GetInventory} operation.
- *
- * Maps to the XML response payload:
- * <pre>
- * {
- *   "Inventory": [{"1": "Item 1", "2": "Item 2", "3": "Item 3", "4": "Assembly 1", "5": ""}],
- *   "State":     0,
- *   "TimeStamp": "12:34:56"
- * }
- * </pre>
- *
- * Keys in {@code inventory} are tray IDs; values are item names (empty string = empty tray).
- */
 public class WarehouseInventory {
 
-    /** Map of tray ID → item name. Empty string means the tray is unoccupied. */
     private Map<Integer, String> inventory;
-
-    /** Current operational state of the warehouse PLC. */
     private WarehouseState state;
-
-    /** Timestamp of the inventory snapshot as reported by the warehouse. */
     private String timestamp;
 
     public WarehouseInventory() {}

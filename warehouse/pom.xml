@@ -59,7 +59,7 @@
                         <configuration>
                             <wsdlOptions>
                                 <wsdlOption>
-                                    <wsdl>http://localhost:8081/Service.asmx?wsdl</wsdl>
+                                    <wsdl>${project.basedir}/src/main/resources/Service.wsdl</wsdl>
                                     <packagenames>
                                         <packagename>dk.sdu.st4.warehouse.service</packagename>
                                     </packagenames>

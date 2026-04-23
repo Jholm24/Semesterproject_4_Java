@@ -1,31 +1,12 @@
-package dk.sdu.st4.core.model;
+package dk.sdu.st4.common.data;
 
-import dk.sdu.st4.core.enums.AssemblyState;
+import dk.sdu.st4.common.data.enums.AssemblyState;
 
-/**
- * Status broadcast received from the Assembly Station over MQTT topic {@code emulator/status}.
- *
- * <pre>
- * {
- *   "LastOperation":    1234,
- *   "CurrentOperation": 2345,
- *   "State":            1,
- *   "TimeStamp":        "12:34:56"
- * }
- * </pre>
- */
 public class AssemblyStatus {
 
-    /** Process ID of the last completed assembly operation. */
     private int lastOperation;
-
-    /** Process ID of the assembly operation currently in progress (0 when idle). */
     private int currentOperation;
-
-    /** Current operational state of the assembly station. */
     private AssemblyState state;
-
-    /** Timestamp of the status message as reported by the assembly station. */
     private String timestamp;
 
     public AssemblyStatus() {}

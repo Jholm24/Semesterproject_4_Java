@@ -1,36 +1,19 @@
-package dk.sdu.st4.core.model;
+package dk.sdu.st4.common.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import dk.sdu.st4.core.enums.AgvState;
+import dk.sdu.st4.common.data.enums.AgvState;
 
-/**
- * Status snapshot returned by the AGV REST API.
- *
- * Maps to the JSON response of both GET and PUT requests:
- * <pre>
- * {
- *   "Battery":      42,
- *   "Program name": "MoveToAssemblyOperation",
- *   "State":        2,
- *   "TimeStamp":    "12:34:56"
- * }
- * </pre>
- */
 public class AgvStatus {
 
-    /** Battery level in percent (0–100). */
     @JsonProperty("battery")
     private int battery;
 
-    /** Name of the currently loaded (or last executed) program. */
     @JsonProperty("program name")
     private String programName;
 
-    /** Current operational state of the AGV. */
     @JsonProperty("state")
     private AgvState state;
 
-    /** Timestamp of the status snapshot as reported by the AGV. */
     @JsonProperty("timestamp")
     private String timestamp;
 

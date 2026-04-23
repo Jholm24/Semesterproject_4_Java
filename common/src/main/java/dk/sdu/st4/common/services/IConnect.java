@@ -1,4 +1,4 @@
-package dk.sdu.st4.common.Interfaces;
+package dk.sdu.st4.common.services;
 
 import java.util.concurrent.CompletableFuture;
 

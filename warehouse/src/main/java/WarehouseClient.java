@@ -1,160 +1,40 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.warehouse.service.IEmulatorService;
 import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
-import dk.sdu.st4.common.Interfaces.IWarehouse;
-import dk.sdu.st4.common.Interfaces.IConnect;
+import dk.sdu.st4.common.services.IWarehouse;
+public class WarehouseClient implements IWarehouse {
+    private final IEmulatorService port;
+    private final ObjectMapper mapper = new ObjectMapper();
 
-import jakarta.xml.ws.BindingProvider;
-import org.glassfish.jaxb.core.v2.TODO;
-
-import java.sql.*;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-public class WarehouseClient implements IWarehouse, IConnect {
-
-    private static WarehouseClient instance;
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private final Map<Integer, IEmulatorService> connections = new HashMap<>();
-    private final Map<Integer, Boolean> connectionState = new HashMap<>();
-
-    //singleton pattern
-    private WarehouseClient() {
-    }
-
-    //How to acces object.
-    public static WarehouseClient getInstance() {
-        if (instance == null) {
-            instance = new WarehouseClient();
-        }
-        return instance;
-    }
-
-    // IConnect
-
-    @Override // method for adding Warehouse machines to the hashmap.
-    public void addMachine(int machineId, String url , String machineType) {
-        // Add machine to database.
-        String sql = """
-                INSERT INTO warehouse_machines (machine_id, machine_type, url)
-                VALUES (?, ?, ?);
-                """;
-        try (Connection connection = DBConnection.getInstance().getConnection()) {
-            PreparedStatement statement = connection.prepareStatement(sql);
-            statement.setInt(1, machineId);
-            statement.setString(2, machineType);
-            statement.setString(3, url);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    public WarehouseClient () {
+        IEmulatorService_Service factory = new IEmulatorService_Service();
+        this.port = factory.getBasicHttpBindingIEmulatorService();
     }
 
     @Override
-    public void removeMachine(int machineId) {
-        String sql = "DELETE FROM warehouse_machines WHERE machine_id = ?";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, machineId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        connections.remove(machineId);
-        connectionState.remove(machineId);
+    public void PickItem(int trayID) {
+        port.pickItem(trayID);
     }
 
     @Override
-    public CompletableFuture<Void> connectMachine(int machineId) {
-        return CompletableFuture.runAsync(() -> {
-            String sql = "SELECT url FROM warehouse_machines WHERE machine_id = ?";
-            try (Connection conn = DBConnection.getInstance().getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, machineId);
-                ResultSet rs = stmt.executeQuery();
-                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineId);
-                String url = rs.getString("url");
-
-                IEmulatorService_Service factory = new IEmulatorService_Service(
-                        new URL(url + "?wsdl"),
-                        IEmulatorService_Service.SERVICE
-                );
-                IEmulatorService warehouseService = factory.getBasicHttpBindingIEmulatorService();
-                ((BindingProvider) warehouseService).getRequestContext()
-                        .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
-                connections.put(machineId, warehouseService);
-                connectionState.put(machineId, true);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to connect to warehouse " + machineId, e);
-            }
-        });
+    public void InsertItem(int trayID, String name) {
+        port.insertItem(trayID, name);
     }
 
     @Override
-    public void disconnectMachine(int machineId) {
-        connections.remove(machineId);
-        connectionState.put(machineId, false);
+    public void GetInventory() {
+        port.getInventory();
     }
 
     @Override
-    public boolean isConnected(int machineId) {
-        return connectionState.getOrDefault(machineId, false);
-    }
-
-    @Override
-    public int getMachineId() {
-        //TODO:
-        return 0;
-
-        //
-
-
-    }
-
-    @Override
-    public void setMachineId(int machineId) {
-        //TODO:
-    }
-
-    @Override
-    public String getMachineType() {
-        //Tjek igennem database for at finde maskinens URL HvaD SKAL DEN BRUGES TIL ALTSÅÅÅÅÅ
-        return "Parts";
-    }
-    @Override
-    public void setMachineType(String machineType) {
-        // TODO
-    }
-
-    // IWarehouse
-    @Override
-    public void PickItem(int trayID, int machineID) {
-        connections.get(machineID).pickItem(trayID);
-    }
-
-    @Override
-    public void InsertItem(int trayID, String name, int machineID) {
-        connections.get(machineID).insertItem(trayID, name);
-    }
-
-    @Override
-    public void GetInventory(int machineID) {
-        connections.get(machineID).getInventory();
-    }
-
-    @Override
-    public int GetState(int machineID) {
+    public int GetState() {
         try {
-            String json = connections.get(machineID).getInventory();
+            String json = port.getInventory();
             JsonNode root = mapper.readTree(json);
             return root.get("State").asInt();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to read State from warehouse " + machineID, e);
+            throw new RuntimeException("Failed to read State from inventory", e);
         }
     }
 }
