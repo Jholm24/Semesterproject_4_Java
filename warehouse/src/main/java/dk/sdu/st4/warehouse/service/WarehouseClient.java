@@ -1,13 +1,12 @@
-package dk.sdu.st4.warehouse.service;
+package dk.sdu.st4.warehouse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.sdu.st4.common.db.DBConnection;
+import dk.sdu.st4.common.services.IConnect;
+import dk.sdu.st4.common.services.IWarehouse;
 import dk.sdu.st4.warehouse.service.IEmulatorService;
 import dk.sdu.st4.warehouse.service.IEmulatorService_Service;
-import dk.sdu.st4.common.services.IWarehouse;
-import dk.sdu.st4.common.services.IConnect;
-
 import jakarta.xml.ws.BindingProvider;
 import org.glassfish.jaxb.core.v2.TODO;
 
@@ -40,17 +39,18 @@ public class WarehouseClient implements IWarehouse, IConnect {
     // IConnect
 
     @Override // method for adding Warehouse machines to the hashmap.
-    public void addMachine(int machineId, String url , String machineType) {
+    public void addMachine(int machineSerialNumber,String type,String variant, String base_url) {
         // Add machine to database.
         String sql = """
-                INSERT INTO machines (machine_id, machine_type, url)
-                VALUES (?, ?, ?);
+                INSERT INTO machines (machineSerialNumber, type,variant, base_url)
+                VALUES (?, ?, ?,?);
                 """;
         try (Connection connection = DBConnection.getInstance().getConnection()) {
             PreparedStatement statement = connection.prepareStatement(sql);
-            statement.setInt(1, machineId);
-            statement.setString(2, machineType);
-            statement.setString(3, url);
+            statement.setInt(1, machineSerialNumber);
+            statement.setString(2, type);
+            statement.setString(3, variant);
+            statement.setString(4, base_url);
             statement.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -58,29 +58,29 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void removeMachine(int machineId) {
-        String sql = "DELETE FROM machines WHERE machine_id = ?";
+    public void removeMachine(int machineSerialNumber) {
+        String sql = "DELETE FROM machines WHERE machineSerialNumber = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, machineId);
+            stmt.setInt(1, machineSerialNumber);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        connections.remove(machineId);
-        connectionState.remove(machineId);
+        connections.remove(machineSerialNumber);
+        connectionState.remove(machineSerialNumber);
     }
 
     @Override
-    public CompletableFuture<Void> connectMachine(int machineId) {
+    public CompletableFuture<Void> connectMachine(int machineSerialNumber) {
         return CompletableFuture.runAsync(() -> {
-            String sql = "SELECT url FROM machines WHERE machine_id = ?";
+            String sql = "SELECT base_url FROM machines WHERE machineSerialNumber = ?";
             try (Connection conn = DBConnection.getInstance().getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, machineId);
+                stmt.setInt(1, machineSerialNumber);
                 ResultSet rs = stmt.executeQuery();
-                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineId);
-                String url = rs.getString("url");
+                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineSerialNumber);
+                String url = rs.getString("base_url");
 
                 IEmulatorService_Service factory = new IEmulatorService_Service(
                         new URL(url + "?wsdl"),
@@ -89,23 +89,23 @@ public class WarehouseClient implements IWarehouse, IConnect {
                 IEmulatorService warehouseService = factory.getBasicHttpBindingIEmulatorService();
                 ((BindingProvider) warehouseService).getRequestContext()
                         .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
-                connections.put(machineId, warehouseService);
-                connectionState.put(machineId, true);
+                connections.put(machineSerialNumber, warehouseService);
+                connectionState.put(machineSerialNumber, true);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to connect to warehouse " + machineId, e);
+                throw new RuntimeException("Failed to connect to warehouse " + machineSerialNumber, e);
             }
         });
     }
 
     @Override
-    public void disconnectMachine(int machineId) {
-        connections.remove(machineId);
-        connectionState.put(machineId, false);
+    public void disconnectMachine(int machineSerialNumber) {
+        connections.remove(machineSerialNumber);
+        connectionState.put(machineSerialNumber, false);
     }
 
     @Override
-    public boolean isConnected(int machineId) {
-        return connectionState.getOrDefault(machineId, false);
+    public boolean isConnected(int machineSerialNumber) {
+        return connectionState.getOrDefault(machineSerialNumber, false);
     }
 
     @Override
@@ -119,7 +119,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void setMachineId(int machineId) {
+    public void setMachineId(int machineSerialNumber) {
         //TODO:
     }
 
@@ -129,34 +129,34 @@ public class WarehouseClient implements IWarehouse, IConnect {
         return "Parts";
     }
     @Override
-    public void setMachineType(String machineType) {
+    public void setMachineType(String type) {
         // TODO
     }
 
     // IWarehouse
     @Override
-    public void PickItem(int trayID, int machineID) {
-        connections.get(machineID).pickItem(trayID);
+    public void PickItem(int trayID, int machieSerialNumber) {
+        connections.get(machieSerialNumber).pickItem(trayID);
     }
 
     @Override
-    public void InsertItem(int trayID, String name, int machineID) {
-        connections.get(machineID).insertItem(trayID, name);
+    public void InsertItem(int trayID, String name, int machineSerialNumber) {
+        connections.get(machineSerialNumber).insertItem(trayID, name);
     }
 
     @Override
-    public void GetInventory(int machineID) {
-        connections.get(machineID).getInventory();
+    public void GetInventory(int machineSerialNumber) {
+        connections.get(machineSerialNumber).getInventory();
     }
 
     @Override
-    public int GetState(int machineID) {
+    public int GetState(int machineSerialNumber) {
         try {
-            String json = connections.get(machineID).getInventory();
+            String json = connections.get(machineSerialNumber).getInventory();
             JsonNode root = mapper.readTree(json);
             return root.get("State").asInt();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to read State from warehouse " + machineID, e);
+            throw new RuntimeException("Failed to read State from warehouse " + machineSerialNumber, e);
         }
     }
 }
