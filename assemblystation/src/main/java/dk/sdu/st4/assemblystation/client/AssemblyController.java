@@ -137,7 +137,13 @@ public class AssemblyController implements IConnect, IAssembly {
 
     @Override public void addMachine(int machineId, String machineType) {}
     @Override public void removeMachine(int machineId) {}
-    @Override public void disconnectMachine(int machineId) {}
+    @Override public void disconnectMachine(int machineId) {
+        try {
+            mqttClient.disconnect();
+        } catch (MqttException e) {
+            e.printStackTrace();
+        }
+    }
     @Override public boolean isConnected(int machineId) { return mqttClient.isConnected(); }
 
 }

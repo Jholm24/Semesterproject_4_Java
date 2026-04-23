@@ -6,6 +6,7 @@ public interface IConnect {
     int getMachineId();
     void setMachineId(int machineId);
 
+
     String getMachineType();
     void setMachineType(String machineType);
 
@@ -15,4 +16,5 @@ public interface IConnect {
     void disconnectMachine(int machineId);
     boolean isConnected(int machineId);
     // Vi er fkn igang
+
 }
