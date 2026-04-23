@@ -17,7 +17,7 @@ Java 17 JPMS Maven multi-module project integrating three Industry 4.0 assets:
 ```bash
 mvn clean install
 ```
-> **Warning:** The `warehouse` module fetches the WSDL from `http://localhost:8081/Service.asmx?wsdl` during the `generate-sources` phase. Docker must be running before building warehouse or running `mvn clean install`.
+> **Warning:** The `warehouse` module fetches the WSDL from `http://localhost:8081/Service.asmx?wsdl` during the `generate-sources` phase. Docker must be running before building `warehouse` or running `mvn clean install`.
 
 ### Start Docker services
 ```bash
@@ -51,22 +51,60 @@ mvn exec:java -pl core -Dui.path=/absolute/path/to/ui
 
 ### Module dependency graph
 ```
-app  (does not exist yet — must be created)
- ├── agv           ──┐
- ├── warehouse     ──┤──> common (no module-info) ──> core
- └── assemblystation┘
+core  (entry point — Main + Orchestrator + ApiServer + React UI)
+ │
+ └──> common (no module-info) ──> IAgv, IWarehouse, IAssembly, IConnect, data models, AppConfig
+
+agv           ──> common      (AgvClient + AgvServiceImpl — FULLY IMPLEMENTED)
+warehouse     ──> common      (WarehouseClient via CXF stubs — FULLY IMPLEMENTED)
+assemblystation ──> common    (module-info.java only — NOT IMPLEMENTED)
+
+app  (does not exist yet — must be created with ProductionOrchestrator)
 ```
+
+> `core` currently contains the `Orchestrator` and talks to the AGV REST API directly (not via the `agv` module). When `app` is created, the orchestration should move there and use `IAgv`/`IWarehouse`/`IAssembly` interfaces.
 
 ### Module responsibilities
 
 | Module | Package | Role |
 |---|---|---|
-| `core` | `dk.sdu.st4.core` | Domain layer — models, enums. Also contains the JavaFX UI sources in `core/ui/`. No service interfaces here. |
-| `common` | `dk.sdu.st4.common` | No `module-info.java`. Contains `AppConfig` (endpoint/topic constants), `JsonUtil` (Jackson wrapper — **fully implemented**), and service interfaces in `common.Interfaces` (`IAgv`, `IWarehouse`, `IConnect`). |
+| `core` | `dk.sdu.st4.core.server` | HTTP server (`ApiServer` on port 8080), production cycle (`Orchestrator`), and React UI static files in `core/ui/`. Entry point is `Main`. |
+| `common` | `dk.sdu.st4.common` | No `module-info.java`. Contains `AppConfig` (endpoint/topic constants), `JsonUtil` (Jackson wrapper), data models (`AgvStatus`, `AssemblyStatus`, `HealthCheckResult`, `WarehouseInventory`), enums (`AgvState`, `AgvProgram`, `AssemblyState`, `WarehouseState`), and service interfaces in `common.Interfaces` (`IAgv`, `IWarehouse`, `IAssembly`, `IConnect`). |
 | `agv` | `dk.sdu.st4.agv` | `AgvClient` (HTTP GET/PUT via `java.net.http`) + `AgvServiceImpl` implements `IAgv`. |
-| `warehouse` | `dk.sdu.st4.warehouse` | `WarehouseClient` (in default package) implements `IWarehouse` using Apache CXF JAX-WS stubs generated from the live WSDL at build time. |
+| `warehouse` | `dk.sdu.st4.warehouse` | `WarehouseClient` (in **default package**) implements `IWarehouse` using Apache CXF JAX-WS stubs generated from the live WSDL at build time. |
 | `assemblystation` | `dk.sdu.st4.assemblystation` | Only `module-info.java` exists — client and service implementation not yet written. |
 | `app` | `dk.sdu.st4.app` | **Does not exist.** Must be created as a Maven module, added to the parent `pom.xml` `<modules>` list, and contain `Main` + `ProductionOrchestrator`. |
+
+### HTTP API (`ApiServer` in `core`)
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/status` | GET | Returns `{agv: {...}, lineStatus: "..."}` — live AGV telemetry + line state |
+| `/api/events` | GET | Returns array of `{t, lvl, m}` log entries (max 20, newest first) |
+| `/api/control` | POST | Accepts `{action: "start"\|"pause"\|"stop"\|"abort"}` |
+| `/*` | GET | Serves static React UI from `core/ui/` |
+
+### React UI (`core/src/main/java/dk/sdu/st4/core/ui/`)
+
+CDN-based React 18 with in-browser Babel/JSX transpilation — no build step needed. Components: `App.jsx` (router + localStorage state), `Dashboard.jsx` (operator/manager views, live polling), `Login.jsx`, `Topbar.jsx`, `Tweaks.jsx`, `Other.jsx` (tasks, employees, production lines). Polls `/api/status` and `/api/events` every 2 seconds.
+
+### Orchestrator (`core`) — current implementation state
+
+`Orchestrator` in `core` manages line status (`standby`, `running`, `paused`, `stopped`, `alarm`) and runs the production cycle on a background thread. It talks to the AGV REST API **directly** (not via `AgvServiceImpl`). The assembly station step is currently a **hardcoded 3-second sleep** — MQTT integration is not implemented.
+
+Production cycle as currently coded:
+1. AGV: `MoveToStorageOperation` → `PickWarehouseOperation` → `MoveToAssemblyOperation` → `PutAssemblyOperation`
+2. *(3s sleep placeholder — assembly MQTT not wired)*
+3. AGV: `PickAssemblyOperation` → `MoveToStorageOperation` → `PutWarehouseOperation`
+
+Warehouse `PickItem`/`InsertItem` calls are **not yet called** by the Orchestrator.
+
+Full intended production cycle (for `ProductionOrchestrator` in future `app` module):
+1. Warehouse picks tray → part moved to outlet
+2. AGV: `MoveToStorageOperation` → `PickWarehouseOperation` → `MoveToAssemblyOperation` → `PutAssemblyOperation`
+3. Assembly station: publish `startOperation(processId)`, await `emulator/checkhealth` callback
+4. AGV: `PickAssemblyOperation` → `MoveToStorageOperation` → `PutWarehouseOperation`
+5. Warehouse inserts assembled item
 
 ### JPMS / `common` library constraint
 `common` has no `module-info.java`. Named modules access it via the unnamed module. Each named module that uses `common` must have in its `pom.xml`:
@@ -82,6 +120,7 @@ Do **not** add `requires dk.sdu.st4.common` to any `module-info.java`. Tests run
 All service interfaces live in `common/Interfaces/`, **not** `core/service/`:
 - `IAgv` — `loadProgram(AgvProgram)`, `executeProgram()`, `getStatus()`
 - `IWarehouse` — `PickItem(int)`, `InsertItem(int, String)`, `GetInventory()`, `GetState()`
+- `IAssembly` — `subscribeAll()`, `executeOperation()`, `errorOperation()`, getters/setters for state, health, operation
 - `IConnect` — machine connection lifecycle (add/remove/connect/disconnect)
 
 ### Key constants (`AppConfig`)
@@ -116,23 +155,20 @@ Two-step: `loadProgram()` then `executeProgram()`, poll `getStatus()` until `Agv
 `AssemblyState` constants are UPPER_CASE: `IDLE` (0), `EXECUTING` (1), `ERROR` (2).
 
 ### Warehouse SOAP client
-`WarehouseClient` (in the default package in `warehouse/src/main/java/`) is generated/backed by Apache CXF. The CXF codegen plugin runs `wsdl2java` against the live endpoint during `generate-sources`, placing stubs in `dk.sdu.st4.warehouse.service`. This means **Docker must be running** when building the `warehouse` module from scratch.
-
-### Production cycle (to implement in `ProductionOrchestrator`)
-1. Warehouse picks tray → part moved to outlet
-2. AGV: `MoveToStorageOperation` → `PickWarehouseOperation` → `MoveToAssemblyOperation` → `PutAssemblyOperation`
-3. Assembly station: publish `startOperation(processId)`, await `emulator/checkhealth` callback
-4. AGV: `PickAssemblyOperation` → `MoveToStorageOperation` → `PutWarehouseOperation`
-5. Warehouse inserts assembled item
+`WarehouseClient` (in the **default package** in `warehouse/src/main/java/`) is backed by Apache CXF. The CXF codegen plugin runs `wsdl2java` against the live endpoint during `generate-sources`, placing stubs in `dk.sdu.st4.warehouse.service`. **Docker must be running** when building the `warehouse` module from scratch.
 
 ### Error handling
 Interface methods declare `throws Exception`. No custom exception classes — use `Exception` directly and propagate.
 
 ### Docker services
-| Service | Port |
+The compose file defines 5 instances of each emulator. `AppConfig` points to instance 1 by default.
+
+| Service | Ports |
 |---|---|
 | MQTT broker | 1883 (TCP), 9001 (WS) |
-| AGV emulator | 8082 |
-| Warehouse emulator | 8081 |
-| Assembly station emulator | — (internal MQTT only) |
+| AGV emulators (1–5) | 8082–8086 |
+| Warehouse emulators (1–5) | 8087–8091 |
+| Assembly station emulators (1–5) | MQTT only (no exposed port) |
 | PostgreSQL | 5432 (`skateboardas`/`skateboardas`) |
+
+The database `machines` table is pre-populated with all 15 instances but is not yet read by the application.
