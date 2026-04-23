@@ -57,21 +57,8 @@ public class AssemblyController implements IConnect, IAssembly {
         };
     }
 
-    // --- IAssembly getters/setters ---
-    @Override public int getState()                  {
-        return model.state;
-    }
-    @Override public int getOperationId()            {
-        return model.operationId;
-    }
-    @Override public boolean isHealthy()             {
-        return model.isHealthy;
-    }
-    @Override public void setState(int state)        { model.state = state; }
-
-    @Override public void setHealthy(boolean h)      { model.isHealthy = h; }
-
-    @Override public void setOperationId(int id) {
+    // --- IAssembly getters/setters ---//
+    @Override public void sendOperationId(int id) {
 
         String json = String.format("{\"ProcessID\": %d}", id);
         try {
@@ -83,14 +70,15 @@ public class AssemblyController implements IConnect, IAssembly {
     }
 
     //Random operation number so we can show different operations
-    @Override public void executeOperation(){
+    @Override public void setExecuteOperation(){
         Random r = new Random();
         int number = r.nextInt(9998) + 1;
-        setOperationId(number);
+        sendOperationId(number);
     }
 
-    @Override public void errorOperation(){
-        setOperationId(1);
+    @Override public void setErrorOperation(){
+
+        sendOperationId(1);
     }
 
     @Override public int getLastOperationId()        { return model.lastOperationId; }
@@ -113,7 +101,6 @@ public class AssemblyController implements IConnect, IAssembly {
         mqttClient.subscribe("emulator/checkhealth");
         mqttClient.subscribe("emulator/operation");
     }
-    @Override public int getLastOperation() { return model.lastOperationId; }
 
     // --- IConnect getters/setters ---
     @Override public int getMachineId()               { return model.machineId; }

@@ -13,7 +13,6 @@ public class Main {
         while(true) {
             controller1.getOperation();
             controller2.getOperation();
-
         }
     }
 }
