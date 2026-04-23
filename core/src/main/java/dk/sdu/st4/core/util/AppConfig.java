@@ -7,6 +7,6 @@ import dk.sdu.st4.core.registries.AssemblyRegistry;
 
 public class AppConfig {
     public static void configure() throws Exception {
-        AssemblyRegistry.configure();
+        AssemblyRegistry.getInstance().configure();
     }
 }

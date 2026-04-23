@@ -9,18 +9,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AssemblyRegistry {
-    private static final Queue<IConnect> available = new LinkedList<>();
-    private static final Map<String, IConnect> active = new HashMap<>();
+    private static AssemblyRegistry instance;
+
+    private final Queue<IConnect> available = new LinkedList<>();
+    private final Map<String, IConnect> active = new HashMap<>();
+
+    private AssemblyRegistry() {}
+
+    public static synchronized AssemblyRegistry getInstance() {
+        if (instance == null) {
+            instance = new AssemblyRegistry();
+        }
+        return instance;
+    }
 
     //Skal hentes fra db
-    public static void configure() throws Exception {
+    public void configure() throws Exception {
         available.add(new AssemblyController(1883));
         available.add(new AssemblyController(1884));
         available.add(new AssemblyController(1885));
     }
 
     //Indtil videre specifikt machineId, det skal være den næste ldeige i køen
-    public static IConnect connectNext() {
+    public IConnect connectNext() {
         if (available.isEmpty()){
             return null;
         }
@@ -29,7 +40,7 @@ public class AssemblyRegistry {
         active.put("assembly-" + (active.size() + 1), machine);
         return machine;
     }
-    public static void disconnect(String key) {
+    public void disconnect(String key) {
         IConnect machine = active.remove(key);
         if (machine!=null){
             machine.disconnectMachine(1883);
