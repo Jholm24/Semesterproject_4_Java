@@ -110,7 +110,7 @@ public class AssemblyController implements IConnect, IAssembly {
     @Override public void setMachineType(String type) { model.machineType = type; }
 
     @Override
-    public void addMachine(int machineId, String url, String machineType) {
+    public void addMachine(int machineSerialNumber, String type, String variant, String base_url) {
 
     }
 
