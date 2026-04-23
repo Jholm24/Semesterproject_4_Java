@@ -12,12 +12,14 @@ public class AssemblyRegistry {
     private static final Queue<IConnect> available = new LinkedList<>();
     private static final Map<String, IConnect> active = new HashMap<>();
 
+    //Skal hentes fra db
     public static void configure() throws Exception {
         available.add(new AssemblyController(1883));
         available.add(new AssemblyController(1884));
         available.add(new AssemblyController(1885));
     }
 
+    //Indtil videre specifikt machineId, det skal være den næste ldeige i køen
     public static IConnect connectNext() {
         if (available.isEmpty()){
             return null;

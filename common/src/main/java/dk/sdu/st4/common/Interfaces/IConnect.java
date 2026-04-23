@@ -16,5 +16,4 @@ public interface IConnect {
     void disconnectMachine(int machineId);
     boolean isConnected(int machineId);
     // Vi er fkn igang
-
 }
