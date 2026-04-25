@@ -24,10 +24,10 @@ public class Main {
         server.start();
 
         System.out.println("=================================================");
-        System.out.println("  DECKFLOW · Production Line Integration");
+        System.out.println("  Skateboard Productions");
         System.out.println("  http://localhost:" + port);
         System.out.println("  UI root : " + uiRoot);
-        System.out.println("  Requires: docker compose up -d (AGV on :8082)");
+        System.out.println("  Requires: docker compose up -d");
         System.out.println("=================================================");
 
         // keep the main thread alive
