@@ -103,20 +103,20 @@ public class AssemblyController implements IConnect, IAssembly {
     }
 
     // --- IConnect getters/setters ---
-    @Override public int getMachineId()               { return model.machineId; }
-    @Override public void setMachineId(int machineId) { model.machineId = machineId; }
+    @Override public String getMachineId()               { return model.serial_no; }
+    @Override public void setMachineId(String machineId) { model.serial_no = machineId; }
 
     @Override public String getMachineType()          { return model.machineType; }
     @Override public void setMachineType(String type) { model.machineType = type; }
 
     @Override
-    public void addMachine(int machineSerialNumber, String type, String variant, String base_url) {
+    public void addMachine(String machineSerialNumber, String type, String variant, String base_url) {
 
     }
 
     // --- IConnect methods ---
     @Override
-    public CompletableFuture<Void> connectMachine(int machineId) {
+    public CompletableFuture<Void> connectMachine(String machineId) {
         return CompletableFuture.runAsync(() -> {
             try {
                 MqttConnectOptions options = new MqttConnectOptions();
@@ -139,14 +139,14 @@ public class AssemblyController implements IConnect, IAssembly {
             }
         });
     }
-    @Override public void removeMachine(int machineId) {}
-    @Override public void disconnectMachine(int machineId) {
+    @Override public void removeMachine(String machineId) {}
+    @Override public void disconnectMachine(String machineId) {
         try {
             mqttClient.disconnect();
         } catch (MqttException e) {
             e.printStackTrace();
         }
     }
-    @Override public boolean isConnected(int machineId) { return mqttClient.isConnected(); }
+    @Override public boolean isConnected(String machineId) { return mqttClient.isConnected(); }
 
 }

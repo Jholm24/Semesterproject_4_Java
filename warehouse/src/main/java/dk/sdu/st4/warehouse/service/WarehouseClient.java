@@ -21,8 +21,8 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     private static WarehouseClient instance;
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final Map<Integer, IEmulatorService> connections = new HashMap<>();
-    private final Map<Integer, Boolean> connectionState = new HashMap<>();
+    private final Map<String, IEmulatorService> connections = new HashMap<>();
+    private final Map<String, Boolean> connectionState = new HashMap<>();
 
     //singleton pattern
     private WarehouseClient() {
@@ -39,7 +39,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     // IConnect
 
     @Override // method for adding Warehouse machines to the hashmap.
-    public void addMachine(int machineSerialNumber,String type,String variant, String base_url) {
+    public void addMachine(String machineSerialNumber,String type,String variant, String base_url) {
         // Add machine to database.
         String sql = """
                 INSERT INTO machines (serial_no, type, variant, base_url)
@@ -47,7 +47,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
                 """;
         try (Connection connection = DBConnection.getInstance().getConnection()) {
             PreparedStatement statement = connection.prepareStatement(sql);
-            statement.setInt(1, machineSerialNumber);
+            statement.setString(1, machineSerialNumber);
             statement.setString(2, type);
             statement.setString(3, variant);
             statement.setString(4, base_url);
@@ -58,11 +58,11 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void removeMachine(int machineSerialNumber) {
+    public void removeMachine(String machineSerialNumber) {
         String sql = "DELETE FROM machines WHERE serial_no = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, machineSerialNumber);
+            stmt.setString(1, machineSerialNumber);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -72,12 +72,12 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public CompletableFuture<Void> connectMachine(int machineSerialNumber) {
+    public CompletableFuture<Void> connectMachine(String machineSerialNumber) {
         return CompletableFuture.runAsync(() -> {
             String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
             try (Connection conn = DBConnection.getInstance().getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, machineSerialNumber);
+                stmt.setString(1, machineSerialNumber);
                 ResultSet rs = stmt.executeQuery();
                 if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineSerialNumber);
                 String url = rs.getString("base_url");
@@ -98,20 +98,20 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void disconnectMachine(int machineSerialNumber) {
+    public void disconnectMachine(String machineSerialNumber) {
         connections.remove(machineSerialNumber);
         connectionState.put(machineSerialNumber, false);
     }
 
     @Override
-    public boolean isConnected(int machineSerialNumber) {
+    public boolean isConnected(String machineSerialNumber) {
         return connectionState.getOrDefault(machineSerialNumber, false);
     }
 
     @Override
-    public int getMachineId() {
+    public String getMachineId() {
         //TODO:
-        return 0;
+        return null;
 
         //
 
@@ -119,7 +119,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void setMachineId(int machineSerialNumber) {
+    public void setMachineId(String machineSerialNumber) {
         //TODO:
     }
 
@@ -135,22 +135,22 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     // IWarehouse
     @Override
-    public void PickItem(int trayID, int machieSerialNumber) {
-        connections.get(machieSerialNumber).pickItem(trayID);
+    public void PickItem(int trayID, String machineSerialNumber) {
+        connections.get(machineSerialNumber).pickItem(trayID);
     }
 
     @Override
-    public void InsertItem(int trayID, String name, int machineSerialNumber) {
+    public void InsertItem(int trayID, String name, String machineSerialNumber) {
         connections.get(machineSerialNumber).insertItem(trayID, name);
     }
 
     @Override
-    public void GetInventory(int machineSerialNumber) {
+    public void GetInventory(String machineSerialNumber) {
         connections.get(machineSerialNumber).getInventory();
     }
 
     @Override
-    public int GetState(int machineSerialNumber) {
+    public int GetState(String machineSerialNumber) {
         try {
             String json = connections.get(machineSerialNumber).getInventory();
             JsonNode root = mapper.readTree(json);
