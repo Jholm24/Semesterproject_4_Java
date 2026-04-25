@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS machines (
-serial_no   VARCHAR(9)      PRIMARY KEY UNIQUE NOT NULL,
+serial_no   VARCHAR(9)      PRIMARY KEY NOT NULL,
 type        VARCHAR(32)     NOT NULL,
 variant     VARCHAR(32),
 base_url    VARCHAR(256)    UNIQUE,
