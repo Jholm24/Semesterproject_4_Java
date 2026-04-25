@@ -116,8 +116,8 @@ public class AssemblyController implements IConnect, IAssembly {
 
     // --- IConnect methods ---
     @Override
-    public CompletableFuture<Void> connectMachine(int machineId) {
-        return CompletableFuture.runAsync(() -> {
+    public void connectMachine(String serial_no) {
+        CompletableFuture.runAsync(() -> {
             try {
                 MqttConnectOptions options = new MqttConnectOptions();
 
@@ -139,14 +139,14 @@ public class AssemblyController implements IConnect, IAssembly {
             }
         });
     }
-    @Override public void removeMachine(int machineId) {}
-    @Override public void disconnectMachine(int machineId) {
+    @Override public void removeMachine(String serial_no) {}
+    @Override public void disconnectMachine(String serial_no) {
         try {
             mqttClient.disconnect();
         } catch (MqttException e) {
             e.printStackTrace();
         }
     }
-    @Override public boolean isConnected(int machineId) { return mqttClient.isConnected(); }
+    @Override public boolean isConnected(String serial_no) { return mqttClient.isConnected(); }
 
 }
