@@ -11,6 +11,6 @@ public class AssemblyModel {
     public int lastOperationId;
 
     // IConnect
-    public String serial_no;
+    public String serialNumber;
     public String machineType;
 }

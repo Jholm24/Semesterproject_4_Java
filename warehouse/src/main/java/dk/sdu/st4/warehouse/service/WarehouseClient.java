@@ -39,7 +39,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     // IConnect
 
     @Override // method for adding Warehouse machines to the hashmap.
-    public void addMachine(String machineSerialNumber,String type,String variant, String base_url) {
+    public void addMachine(String serialNumber,String type,String variant, String base_url) {
         // Add machine to database.
         String sql = """
                 INSERT INTO machines (serial_no, type, variant, base_url)
@@ -47,7 +47,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
                 """;
         try (Connection connection = DBConnection.getInstance().getConnection()) {
             PreparedStatement statement = connection.prepareStatement(sql);
-            statement.setString(1, machineSerialNumber);
+            statement.setString(1, serialNumber);
             statement.setString(2, type);
             statement.setString(3, variant);
             statement.setString(4, base_url);
@@ -58,28 +58,28 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void removeMachine(String machineSerialNumber) {
+    public void removeMachine(String serialNumber) {
         String sql = "DELETE FROM machines WHERE serial_no = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, machineSerialNumber);
+            stmt.setString(1, serialNumber);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        connections.remove(machineSerialNumber);
-        connectionState.remove(machineSerialNumber);
+        connections.remove(serialNumber);
+        connectionState.remove(serialNumber);
     }
 
     @Override
-    public CompletableFuture<Void> connectMachine(String machineSerialNumber) {
+    public CompletableFuture<Void> connectMachine(String serialNumber) {
         return CompletableFuture.runAsync(() -> {
             String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
             try (Connection conn = DBConnection.getInstance().getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, machineSerialNumber);
+                stmt.setString(1, serialNumber);
                 ResultSet rs = stmt.executeQuery();
-                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + machineSerialNumber);
+                if (!rs.next()) throw new RuntimeException("Ingen maskine fundet med id: " + serialNumber);
                 String url = rs.getString("base_url");
 
                 IEmulatorService_Service factory = new IEmulatorService_Service(
@@ -89,23 +89,23 @@ public class WarehouseClient implements IWarehouse, IConnect {
                 IEmulatorService warehouseService = factory.getBasicHttpBindingIEmulatorService();
                 ((BindingProvider) warehouseService).getRequestContext()
                         .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
-                connections.put(machineSerialNumber, warehouseService);
-                connectionState.put(machineSerialNumber, true);
+                connections.put(serialNumber, warehouseService);
+                connectionState.put(serialNumber, true);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to connect to warehouse " + machineSerialNumber, e);
+                throw new RuntimeException("Failed to connect to warehouse " + serialNumber, e);
             }
         });
     }
 
     @Override
-    public void disconnectMachine(String machineSerialNumber) {
-        connections.remove(machineSerialNumber);
-        connectionState.put(machineSerialNumber, false);
+    public void disconnectMachine(String serialNumber) {
+        connections.remove(serialNumber);
+        connectionState.put(serialNumber, false);
     }
 
     @Override
-    public boolean isConnected(String machineSerialNumber) {
-        return connectionState.getOrDefault(machineSerialNumber, false);
+    public boolean isConnected(String serialNumber) {
+        return connectionState.getOrDefault(serialNumber, false);
     }
 
     @Override
@@ -119,7 +119,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     }
 
     @Override
-    public void setMachineId(String machineSerialNumber) {
+    public void setMachineId(String serialNumber) {
         //TODO:
     }
 
@@ -135,28 +135,28 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     // IWarehouse
     @Override
-    public void PickItem(int trayID, String machineSerialNumber) {
-        connections.get(machineSerialNumber).pickItem(trayID);
+    public void PickItem(int trayID, String serialNumber) {
+        connections.get(serialNumber).pickItem(trayID);
     }
 
     @Override
-    public void InsertItem(int trayID, String name, String machineSerialNumber) {
-        connections.get(machineSerialNumber).insertItem(trayID, name);
+    public void InsertItem(int trayID, String name, String serialNumber) {
+        connections.get(serialNumber).insertItem(trayID, name);
     }
 
     @Override
-    public void GetInventory(String machineSerialNumber) {
-        connections.get(machineSerialNumber).getInventory();
+    public void GetInventory(String serialNumber) {
+        connections.get(serialNumber).getInventory();
     }
 
     @Override
-    public int GetState(String machineSerialNumber) {
+    public int GetState(String serialNumber) {
         try {
-            String json = connections.get(machineSerialNumber).getInventory();
+            String json = connections.get(serialNumber).getInventory();
             JsonNode root = mapper.readTree(json);
             return root.get("State").asInt();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to read State from warehouse " + machineSerialNumber, e);
+            throw new RuntimeException("Failed to read State from warehouse " + serialNumber, e);
         }
     }
 }
