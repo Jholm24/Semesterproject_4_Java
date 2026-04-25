@@ -42,7 +42,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     public void addMachine(int machineSerialNumber,String type,String variant, String base_url) {
         // Add machine to database.
         String sql = """
-                INSERT INTO machines (machineSerialNumber, type,variant, base_url)
+                INSERT INTO machines (serial_no, type, variant, base_url)
                 VALUES (?, ?, ?,?);
                 """;
         try (Connection connection = DBConnection.getInstance().getConnection()) {
@@ -59,7 +59,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
 
     @Override
     public void removeMachine(int machineSerialNumber) {
-        String sql = "DELETE FROM machines WHERE machineSerialNumber = ?";
+        String sql = "DELETE FROM machines WHERE serial_no = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, machineSerialNumber);
@@ -74,7 +74,7 @@ public class WarehouseClient implements IWarehouse, IConnect {
     @Override
     public CompletableFuture<Void> connectMachine(int machineSerialNumber) {
         return CompletableFuture.runAsync(() -> {
-            String sql = "SELECT base_url FROM machines WHERE machineSerialNumber = ?";
+            String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
             try (Connection conn = DBConnection.getInstance().getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, machineSerialNumber);
