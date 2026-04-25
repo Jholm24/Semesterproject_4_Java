@@ -1,25 +1,25 @@
 CREATE TABLE IF NOT EXISTS machines (
-machineSerialNumber   INT PRIMARY KEY,
-type        VARCHAR(32)  NOT NULL,
+serial_no   VARCHAR(9)      PRIMARY KEY NOT NULL,
+type        VARCHAR(32)     NOT NULL,
 variant     VARCHAR(32),
-base_url    VARCHAR(256) UNIQUE,
-created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+base_url    VARCHAR(256)    UNIQUE,
+created_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO machines (machineSerialNumber, type, variant, base_url) VALUES
-(1,'AGV',               '',           'http://localhost:8082/v1/status/'),
-(2,'AGV',               '',           'http://localhost:8083/v1/status/'),
-(3,'AGV',               '',           'http://localhost:8084/v1/status/'),
-(4,'AGV',               '',           'http://localhost:8085/v1/status/'),
-(5,'AGV',               '',           'http://localhost:8086/v1/status/'),
-(6,'WAREHOUSE',         'parts',     'http://localhost:8087/Service.asmx'),
-(7,'WAREHOUSE',         'parts',     'http://localhost:8088/Service.asmx'),
-(8,'WAREHOUSE',         'accepted',     'http://localhost:8089/Service.asmx'),
-(9,'WAREHOUSE',         'accepted',     'http://localhost:8090/Service.asmx'),
-(10,'WAREHOUSE',         'defect',     'http://localhost:8091/Service.asmx'),
-(11,'WAREHOUSE',         'defect',     'http://localhost:8092/Service.asmx'),
-(12,'ASSEMBLY_STATION',  '', NULL),
-(13,'ASSEMBLY_STATION',  '', NULL),
-(15,'ASSEMBLY_STATION',  '', NULL),
-(16,'ASSEMBLY_STATION',  '', NULL),
-(17,'ASSEMBLY_STATION',  '', NULL);
+INSERT INTO machines (serial_no, type, variant, base_url) VALUES
+('AG-294751', 'AGV',              '',          'http://localhost:8082/v1/status/'),
+('AG-183640', 'AGV',              '',          'http://localhost:8083/v1/status/'),
+('AG-572913', 'AGV',              '',          'http://localhost:8084/v1/status/'),
+('AG-846203', 'AGV',              '',          'http://localhost:8085/v1/status/'),
+('AG-731485', 'AGV',              '',          'http://localhost:8086/v1/status/'),
+('WH-P13752', 'WAREHOUSE',        'parts',     'http://localhost:8087/Service.asmx'),
+('WH-P47281', 'WAREHOUSE',        'parts',     'http://localhost:8088/Service.asmx'),
+('WH-A64819', 'WAREHOUSE',        'accepted',  'http://localhost:8089/Service.asmx'),
+('WH-A29047', 'WAREHOUSE',        'accepted',  'http://localhost:8090/Service.asmx'),
+('WH-D81234', 'WAREHOUSE',        'defect',    'http://localhost:8091/Service.asmx'),
+('WH-D02765', 'WAREHOUSE',        'defect',    'http://localhost:8092/Service.asmx'),
+('AS-739281', 'ASSEMBLY_STATION', '',          NULL),
+('AS-516403', 'ASSEMBLY_STATION', '',          NULL),
+('AS-284971', 'ASSEMBLY_STATION', '',          NULL),
+('AS-653820', 'ASSEMBLY_STATION', '',          NULL),
+('AS-917346', 'ASSEMBLY_STATION', '',          NULL);

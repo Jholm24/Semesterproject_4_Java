@@ -36,32 +36,32 @@ services:
   # ---------------------------------------------------------------------------
   # Warehouse instances (6) — host ports 8087-8092 → container port 80
   # ---------------------------------------------------------------------------
-  st4-warehouse-1-defect:
+  st4-warehouse-1:
     image: thmork/st4-warehouse:latest
     ports:
       - "8087:80"
 
-  st4-warehouse-2-defect:
+  st4-warehouse-2:
     image: thmork/st4-warehouse:latest
     ports:
       - "8088:80"
 
-  st4-warehouse-3-defect:
+  st4-warehouse-3:
     image: thmork/st4-warehouse:latest
     ports:
       - "8089:80"
 
-  st4-warehouse-4-defect:
+  st4-warehouse-4:
     image: thmork/st4-warehouse:latest
     ports:
       - "8090:80"
 
-  st4-warehouse-5-defect:
+  st4-warehouse-5:
     image: thmork/st4-warehouse:latest
     ports:
       - "8091:80"
 
-  st4-warehouse-6-defect:
+  st4-warehouse-6:
     image: thmork/st4-warehouse:latest
     ports:
       - "8092:80"
@@ -69,31 +69,31 @@ services:
   # ---------------------------------------------------------------------------
   # Assembly Station instances (5) — no host ports; communicate via MQTT broker
   # ---------------------------------------------------------------------------
-  st4-assemblystation-1:
+  st4-assemblyStation-1:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
 
-  st4-assemblystation-2:
+  st4-assemblyStation-2:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
 
-  st4-assemblystation-3:
+  st4-assemblyStation-3:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
 
-  st4-assemblystation-4:
+  st4-assemblyStation-4:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
 
-  st4-assemblystation-5:
+  st4-assemblyStation-5:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
