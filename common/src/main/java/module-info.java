@@ -7,4 +7,5 @@ module dk.sdu.st4.common {
     exports dk.sdu.st4.common.util;
     exports dk.sdu.st4.common.services;
     exports dk.sdu.st4.common.data.enums;
+    exports dk.sdu.st4.common.data;
 }
