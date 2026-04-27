@@ -1,3 +1,0 @@
-db.url=jdbc:postgresql://localhost:5432/skateboardas
-db.user=your_username
-db.password=your_password

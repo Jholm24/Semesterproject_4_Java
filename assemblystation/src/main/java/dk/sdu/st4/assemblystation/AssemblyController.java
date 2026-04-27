@@ -15,10 +15,10 @@ public class AssemblyController implements IConnect, IAssembly {
 
     private final AssemblyModel model;
     private MqttClient mqttClient;
-    public AssemblyController(int machineUrl) throws MqttException {
+    public AssemblyController(String broker, int port) throws MqttException {
         model = new AssemblyModel();
-        model.broker = "localhost";
-        model.port = machineUrl;
+        model.broker = broker;
+        model.port = port;
     }
 
     private MqttCallback buildCallback() {
@@ -116,28 +116,26 @@ public class AssemblyController implements IConnect, IAssembly {
 
     // --- IConnect methods ---
     @Override
-    public CompletableFuture<Void> connectMachine(String serialNumber) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                MqttConnectOptions options = new MqttConnectOptions();
+    public CompletableFuture<Void> connectMachine(String machineId) {
+        try {
+            MqttConnectOptions options = new MqttConnectOptions();
+            options.setCleanSession(true);
+            options.setKeepAliveInterval(60);
+            options.setAutomaticReconnect(true);
 
-                options.setCleanSession(true);
-                options.setKeepAliveInterval(60);
-                options.setAutomaticReconnect(true);
-
-                mqttClient = new MqttClient(
-                        "tcp://" + model.broker + ":" + serialNumber,
-                        UUID.randomUUID().toString(),
-                        new MemoryPersistence()
-                );
-                mqttClient.setCallback(buildCallback());
-                mqttClient.connect(options);
-                subscribeAll();
-                System.out.println("Connected to " + model.broker + ":" + serialNumber);
-            } catch (MqttException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
+            mqttClient = new MqttClient(
+                    "tcp://" + model.broker + ":" + model.port,
+                    UUID.randomUUID().toString(),
+                    new MemoryPersistence()
+            );
+            mqttClient.setCallback(buildCallback());
+            mqttClient.connect(options);
+            subscribeAll();
+            System.out.println("Connected to " + model.broker + ":" + model.port);
+        } catch (MqttException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return CompletableFuture.completedFuture(null);
     }
     @Override public void removeMachine(String serialNumber) {}
     @Override public void disconnectMachine(String serialNumber) {
