@@ -13,7 +13,8 @@ import java.util.concurrent.ExecutionException;
 public class AssemblyRegistry {
     private static AssemblyRegistry instance;
 
-    private static final int MQTT_PORT = 1883;
+    private static final String MQTT_BROKER = System.getenv().getOrDefault("MQTT_TCP_CONNECTION_HOST", "localhost");
+    private static final int MQTT_PORT = Integer.parseInt(System.getenv().getOrDefault("MQTT_TCP_CONNECTION_PORT", "1883"));
 
     private final Queue<IConnect> available = new LinkedList<>();
     private final Map<String, IConnect> active = new HashMap<>();
@@ -34,7 +35,7 @@ public class AssemblyRegistry {
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 String serialNo = rs.getString("serial_no");
-                AssemblyController controller = new AssemblyController(MQTT_PORT);
+                AssemblyController controller = new AssemblyController(MQTT_BROKER, MQTT_PORT);
                 controller.setMachineId(serialNo);
                 available.add(controller);
             }
