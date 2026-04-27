@@ -103,20 +103,20 @@ public class AssemblyController implements IConnect, IAssembly {
     }
 
     // --- IConnect getters/setters ---
-    @Override public int getMachineId()               { return model.machineId; }
-    @Override public void setMachineId(int machineId) { model.machineId = machineId; }
+    @Override public String getMachineId()               { return model.serialNumber; }
+    @Override public void setMachineId(String serialNumber) { model.serialNumber = serialNumber; }
 
     @Override public String getMachineType()          { return model.machineType; }
     @Override public void setMachineType(String type) { model.machineType = type; }
 
     @Override
-    public void addMachine(int machineSerialNumber, String type, String variant, String base_url) {
+    public void addMachine(String machineSerialNumber, String type, String variant, String base_url) {
 
     }
 
     // --- IConnect methods ---
     @Override
-    public CompletableFuture<Void> connectMachine(int machineId) {
+    public CompletableFuture<Void> connectMachine(String serialNumber) {
         return CompletableFuture.runAsync(() -> {
             try {
                 MqttConnectOptions options = new MqttConnectOptions();
@@ -126,27 +126,27 @@ public class AssemblyController implements IConnect, IAssembly {
                 options.setAutomaticReconnect(true);
 
                 mqttClient = new MqttClient(
-                        "tcp://" + model.broker + ":" + machineId,
+                        "tcp://" + model.broker + ":" + serialNumber,
                         UUID.randomUUID().toString(),
                         new MemoryPersistence()
                 );
                 mqttClient.setCallback(buildCallback());
                 mqttClient.connect(options);
                 subscribeAll();
-                System.out.println("Connected to " + model.broker + ":" + machineId);
+                System.out.println("Connected to " + model.broker + ":" + serialNumber);
             } catch (MqttException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         });
     }
-    @Override public void removeMachine(int machineId) {}
-    @Override public void disconnectMachine(int machineId) {
+    @Override public void removeMachine(String serialNumber) {}
+    @Override public void disconnectMachine(String serialNumber) {
         try {
             mqttClient.disconnect();
         } catch (MqttException e) {
             e.printStackTrace();
         }
     }
-    @Override public boolean isConnected(int machineId) { return mqttClient.isConnected(); }
+    @Override public boolean isConnected(String machineId) { return mqttClient.isConnected(); }
 
 }

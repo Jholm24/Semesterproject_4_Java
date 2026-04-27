@@ -3,16 +3,20 @@ package dk.sdu.st4.common.services;
 import java.util.concurrent.CompletableFuture;
 
 public interface IConnect {
-    int getMachineId();
-    void setMachineId(int machineId);
 
+    // Serial number
+    String getMachineId();
+    void setMachineId(String serialNumber);
+
+    // Machine type
     String getMachineType();
     void setMachineType(String machineType);
 
-    void addMachine(int machineSerialNumber,String type, String variant, String base_url);
-    void removeMachine(int machineSerialNumber);
-    CompletableFuture<Void> connectMachine(int machineId);
-    void disconnectMachine(int machineId);
-    boolean isConnected(int machineId);
+    // Machine management
+    void addMachine(String serialNumber,String type, String variant, String base_url);
+    void removeMachine(String serialNumber);
+    CompletableFuture<Void> connectMachine(String serialNumber);
+    void disconnectMachine(String serialNumber);
+    boolean isConnected(String serialNumber);
     // Vi er fkn igang
 }

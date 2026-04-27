@@ -29,8 +29,8 @@ function Login({ nav }) {
             </svg>
           </div>
           <div>
-            <div className="brand-name">DECKFLOW</div>
-            <div className="brand-sub">Production Line Integration · ST4</div>
+            <div className="brand-name">Skateboard Productions</div>
+            <div className="brand-sub">Proud producer of many products</div>
           </div>
         </div>
 

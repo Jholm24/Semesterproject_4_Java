@@ -36,14 +36,14 @@ public class AssemblyRegistry {
             return null;
         }
         IConnect machine = available.poll();
-        machine.connectMachine(1883);
+        machine.connectMachine("1883");
         active.put("assembly-" + (active.size() + 1), machine);
         return machine;
     }
     public void disconnect(String key) {
         IConnect machine = active.remove(key);
         if (machine!=null){
-            machine.disconnectMachine(1883);
+            machine.disconnectMachine("1883");
             available.add(machine);
         }
     }
