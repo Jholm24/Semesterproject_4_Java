@@ -1,6 +1,5 @@
 package dk.sdu.st4.assemblystation;
 
-import dk.sdu.st4.assemblystation.AssemblyController;
 import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.common.services.IConnect;
 
@@ -9,9 +8,12 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class AssemblyRegistry {
     private static AssemblyRegistry instance;
+
+    private static final int MQTT_PORT = 1883;
 
     private final Queue<IConnect> available = new LinkedList<>();
     private final Map<String, IConnect> active = new HashMap<>();
@@ -25,17 +27,14 @@ public class AssemblyRegistry {
         return instance;
     }
 
-    // Henter maskiner fra DB
     public void configure() throws Exception {
-        String sql = "SELECT serial_no, base_url FROM machines WHERE type = 'assembly'";
+        String sql = "SELECT serial_no FROM machines WHERE type = 'ASSEMBLY_STATION'";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 String serialNo = rs.getString("serial_no");
-                String baseUrl = rs.getString("base_url");
-                int port = Integer.parseInt(baseUrl); // base_url er porten for assembly
-                AssemblyController controller = new AssemblyController(port);
+                AssemblyController controller = new AssemblyController(MQTT_PORT);
                 controller.setMachineId(serialNo);
                 available.add(controller);
             }
@@ -66,10 +65,10 @@ public class AssemblyRegistry {
         }
     }
 
-    public IConnect connectNext() {
+    public IConnect connectNext() throws ExecutionException, InterruptedException {
         if (available.isEmpty()) return null;
         IConnect machine = available.poll();
-        machine.connectMachine(machine.getMachineId()); // bruger maskinens egen ID/port
+        machine.connectMachine(machine.getMachineId()).get();
         active.put("assembly-" + (active.size() + 1), machine);
         return machine;
     }
@@ -77,7 +76,7 @@ public class AssemblyRegistry {
     public void disconnect(String key) {
         IConnect machine = active.remove(key);
         if (machine != null) {
-            machine.disconnectMachine(machine.getMachineId()); // bruger maskinens egen ID/port
+            machine.disconnectMachine(machine.getMachineId());
             available.add(machine);
         }
     }
