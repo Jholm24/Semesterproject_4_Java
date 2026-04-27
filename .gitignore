@@ -193,3 +193,4 @@ coverage/
 ##############################
 # Uncomment if needed
 # .github/workflows/*.yml
+/env
