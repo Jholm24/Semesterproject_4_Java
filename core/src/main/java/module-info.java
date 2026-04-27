@@ -3,6 +3,7 @@ module dk.sdu.st4.core {
     requires java.net.http;
     requires dk.sdu.st4.common;
     requires dk.sdu.st4.assemblystation;
+    requires dk.sdu.st4.app;
 
     exports dk.sdu.st4.core.server;
 }

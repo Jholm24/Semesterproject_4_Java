@@ -1,7 +1,9 @@
 package dk.sdu.st4.core.server;
 
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import dk.sdu.st4.app.ProductionOrchestrator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,12 +22,12 @@ import java.util.concurrent.Executors;
  */
 public class ApiServer {
 
-    private final Orchestrator orchestrator;
+    private final ProductionOrchestrator orchestrator;
     private final int          port;
     private final Path         uiRoot;
     private HttpServer         server;
 
-    public ApiServer(Orchestrator orchestrator, int port, Path uiRoot) {
+    public ApiServer(ProductionOrchestrator orchestrator, int port, Path uiRoot) {
         this.orchestrator = orchestrator;
         this.port   = port;
         this.uiRoot = uiRoot;

@@ -1,5 +1,11 @@
 package dk.sdu.st4.core.server;
 
+import dk.sdu.st4.app.ProductionOrchestrator;
+import dk.sdu.st4.app.Registries.AgvRegistry;
+import dk.sdu.st4.app.Registries.AssemblyRegistry;
+import dk.sdu.st4.app.Registries.WarehouseRegistry;
+import dk.sdu.st4.common.config.AppConfig;
+
 import java.nio.file.Path;
 
 /**
@@ -18,8 +24,15 @@ public class Main {
         Path uiRoot = Path.of(System.getProperty("ui.path",
             "core/src/main/java/dk/sdu/st4/core/ui")).toAbsolutePath();
 
-        Orchestrator orchestrator = new Orchestrator();
-        ApiServer    server       = new ApiServer(orchestrator, port, uiRoot);
+        AgvRegistry      agvRegistry      = new AgvRegistry();
+        WarehouseRegistry warehouseRegistry = new WarehouseRegistry();
+        AssemblyRegistry  assemblyRegistry  = AssemblyRegistry.getInstance();
+
+        agvRegistry.add(AppConfig.AGV_BASE_URL);
+
+        ProductionOrchestrator orchestrator = new ProductionOrchestrator(
+                agvRegistry, warehouseRegistry, assemblyRegistry);
+        ApiServer server = new ApiServer(orchestrator, port, uiRoot);
 
         server.start();
 

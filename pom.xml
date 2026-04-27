@@ -21,6 +21,7 @@
         <module>agv</module>
         <module>warehouse</module>
         <module>assemblystation</module>
+        <module>app</module>
     </modules>
 
     <properties>
@@ -56,6 +57,11 @@
             <dependency>
                 <groupId>dk.sdu.st4</groupId>
                 <artifactId>assemblystation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dk.sdu.st4</groupId>
+                <artifactId>app</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

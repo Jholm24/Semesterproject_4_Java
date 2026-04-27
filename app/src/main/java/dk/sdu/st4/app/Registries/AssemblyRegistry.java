@@ -1,4 +1,4 @@
-package dk.sdu.st4.core.registries;
+package dk.sdu.st4.app.Registries;
 
 import dk.sdu.st4.assemblystation.AssemblyController;
 import dk.sdu.st4.common.services.IConnect;
