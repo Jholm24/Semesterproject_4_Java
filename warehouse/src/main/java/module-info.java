@@ -23,4 +23,6 @@ module dk.sdu.st4.warehouse {
     requires org.glassfish.jaxb.core;
     requires java.sql;
 
+    provides dk.sdu.st4.common.services.IConnect
+            with dk.sdu.st4.warehouse.service.WarehouseConnect;
 }
