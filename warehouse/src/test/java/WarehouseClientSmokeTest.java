@@ -1,29 +1,17 @@
-import dk.sdu.st4.warehouse.service.WarehouseClient;
-import dk.sdu.st4.warehouse.service.WarehouseConnect;
+import dk.sdu.st4.warehouse.service.WarehouseService;
 
 public class WarehouseClientSmokeTest {
 
     public static void main(String[] args) throws Exception {
-        String machineSerialNumber = "WH-123"; // ændre værdi for at tilføje andre
-        String base_url = "http://localhost:8087/Service.asmx"; // ændre værdi for at tilføje andre
-        String type = "warehouse";
-        String variant = "Parts";
+        String machineSerialNumber = "WH-123";
+        String baseUrl = "http://localhost:8087/Service.asmx";
 
-        WarehouseConnect connect = new WarehouseConnect();
-        WarehouseClient client = new WarehouseClient(connect);
-
-        System.out.println("--- Tilføjer maskine til DB ---");
-        connect.addMachine(machineSerialNumber, type, variant, base_url);
-
-        System.out.println("--- Connecter til maskine ---");
-        connect.connectMachine(machineSerialNumber).get(); // .get() venter på CompletableFuture
-
-        System.out.println("--- Er connected: " + connect.isConnected(machineSerialNumber) + " ---");
+        WarehouseService service = new WarehouseService(baseUrl);
 
         System.out.println("--- Henter inventory ---");
-        client.GetInventory(machineSerialNumber);
+        service.GetInventory(machineSerialNumber);
 
-        System.out.println("--- GetState: " + client.GetState(machineSerialNumber) + " ---");
+        System.out.println("--- GetState: " + service.GetState(machineSerialNumber) + " ---");
 
         System.out.println("--- Smoke test OK ---");
     }
