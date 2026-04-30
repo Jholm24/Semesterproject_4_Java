@@ -26,7 +26,7 @@ public class Main {
 
         AgvRegistry      agvRegistry      = new AgvRegistry();
         WarehouseRegistry warehouseRegistry = new WarehouseRegistry();
-        AssemblyRegistry  assemblyRegistry  = AssemblyRegistry.getInstance();
+        AssemblyRegistry  assemblyRegistry  = new AssemblyRegistry();
 
         ProductionOrchestrator orchestrator = new ProductionOrchestrator(
                 agvRegistry, warehouseRegistry, assemblyRegistry);

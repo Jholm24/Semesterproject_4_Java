@@ -2,6 +2,7 @@ package dk.sdu.st4.warehouse.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dk.sdu.st4.common.config.AppConfig;
 import dk.sdu.st4.common.services.IWarehouse;
 import jakarta.xml.ws.BindingProvider;
 
@@ -9,6 +10,10 @@ public class WarehouseService implements IWarehouse {
 
     private static final ObjectMapper mapper = new ObjectMapper();
     private final IEmulatorService proxy;
+
+    public WarehouseService() {
+        this(AppConfig.WAREHOUSE_SERVICE_URL);
+    }
 
     public WarehouseService(String baseUrl) {
         IEmulatorService_Service factory = new IEmulatorService_Service();

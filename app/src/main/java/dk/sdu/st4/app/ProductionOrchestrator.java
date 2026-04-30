@@ -127,18 +127,16 @@ public class ProductionOrchestrator {
     }
 
     private void runOneCycle() throws Exception {
-        IAgv agv               = agvRegistry.acquire();
-        String warehouseSerial = warehouseRegistry.acquire();
+        IAgv agv           = agvRegistry.acquire();
+        IWarehouse warehouse = warehouseRegistry.acquire();
 
-        if (agv == null || warehouseSerial == null) {
-            if (agv != null)             agvRegistry.release(agv);
-            if (warehouseSerial != null) warehouseRegistry.release(warehouseSerial);
+        if (agv == null || warehouse == null) {
+            if (agv != null)       agvRegistry.release(agv);
+            if (warehouse != null) warehouseRegistry.release(warehouse);
             throw new Exception("No machines available to run a cycle");
         }
 
         try {
-            IWarehouse warehouse = warehouseRegistry.getClient();
-
             step(agv, AgvProgram.MoveToStorageOperation,  "AGV · moving to warehouse");
             step(agv, AgvProgram.PickWarehouseOperation,   "AGV · picking tray from warehouse");
             log("ok", "Warehouse · tray picked — item ready");
@@ -158,7 +156,7 @@ public class ProductionOrchestrator {
             log("ok", "Cycle complete — assembled item stored");
         } finally {
             agvRegistry.release(agv);
-            warehouseRegistry.release(warehouseSerial);
+            warehouseRegistry.release(warehouse);
         }
     }
 
