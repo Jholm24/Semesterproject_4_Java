@@ -67,38 +67,54 @@ services:
       - "8092:80"
 
   # ---------------------------------------------------------------------------
-  # Assembly Station instances (5) — no host ports; communicate via MQTT broker
+  # Assembly Station base (ikke startet selv — bruges kun som skabelon)
+  # ---------------------------------------------------------------------------
+  st4-assemblyStation-base:
+    image: thmork/st4-assemblystation:latest
+    environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
+    depends_on:
+      - mqtt
+    profiles:
+      - base-only #
+
+  # ---------------------------------------------------------------------------
+  # Assembly Station instances (5) — arver fra base
   # ---------------------------------------------------------------------------
   st4-assemblyStation-1:
-    image: thmork/st4-assemblystation:latest
+    extends:
+      service: st4-assemblyStation-base
     environment:
-      MQTT_TCP_CONNECTION_HOST: "mqtt"
-      MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "1"
 
   st4-assemblyStation-2:
-    image: thmork/st4-assemblystation:latest
+    extends:
+      service: st4-assemblyStation-base
     environment:
-      MQTT_TCP_CONNECTION_HOST: "mqtt"
-      MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "2"
 
   st4-assemblyStation-3:
-    image: thmork/st4-assemblystation:latest
+    extends:
+      service: st4-assemblyStation-base
     environment:
-      MQTT_TCP_CONNECTION_HOST: "mqtt"
-      MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "3"
 
   st4-assemblyStation-4:
-    image: thmork/st4-assemblystation:latest
+    extends:
+      service: st4-assemblyStation-base
     environment:
-      MQTT_TCP_CONNECTION_HOST: "mqtt"
-      MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "4"
 
   st4-assemblyStation-5:
-    image: thmork/st4-assemblystation:latest
+    extends:
+      service: st4-assemblyStation-base
     environment:
-      MQTT_TCP_CONNECTION_HOST: "mqtt"
-      MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "5"
 
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
   db:
     image: postgres:16
     environment:
@@ -113,4 +129,3 @@ services:
 
 volumes:
   pgdata:
-
