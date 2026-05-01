@@ -28,6 +28,10 @@ public class Main {
         WarehouseRegistry warehouseRegistry = new WarehouseRegistry();
         AssemblyRegistry  assemblyRegistry  = new AssemblyRegistry();
 
+        agvRegistry.loadFromDb();
+        warehouseRegistry.loadFromDb();
+        assemblyRegistry.loadFromDb();
+
         ProductionOrchestrator orchestrator = new ProductionOrchestrator(
                 agvRegistry, warehouseRegistry, assemblyRegistry);
         ApiServer server = new ApiServer(orchestrator, port, uiRoot);

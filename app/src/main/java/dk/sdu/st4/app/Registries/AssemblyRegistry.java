@@ -4,6 +4,8 @@ import dk.sdu.st4.assemblystation.AssemblyServiceImpl;
 import dk.sdu.st4.common.db.DbMachineConnect;
 import dk.sdu.st4.common.services.IAssembly;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -50,7 +52,11 @@ public class AssemblyRegistry extends DbMachineConnect {
     public void loadFromDb() {
         List<String> serialNumbers = DbMachineConnect.getMachinesByType("ASSEMBLY_STATION");
         for (String sn : serialNumbers) {
-            connectMachine(sn);
+            try {
+                connectMachine(sn);
+            } catch (Exception e) {
+                System.err.println("[AssemblyRegistry] Failed to connect " + sn + ": " + e.getMessage());
+            }
         }
     }
 
@@ -59,6 +65,31 @@ public class AssemblyRegistry extends DbMachineConnect {
     /** Returns serial numbers of all connected (idle) assembly stations. */
     public Set<String> getAvailable() {
         return Set.copyOf(available);
+    }
+
+    /** Returns live status for every connected Assembly Station: serialNumber, poolStatus, state, healthy, operationId, lastOperationId. */
+    public List<Map<String, Object>> getPoolInfo() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, AssemblyServiceImpl> entry : services.entrySet()) {
+            String sn = entry.getKey();
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("serialNumber", sn);
+            info.put("poolStatus", active.contains(sn) ? "active" : "idle");
+            try {
+                AssemblyServiceImpl svc = entry.getValue();
+                info.put("state",           svc.getStatus());
+                info.put("healthy",         svc.getHealth());
+                info.put("operationId",     svc.getOperation());
+                info.put("lastOperationId", svc.getLastOperationId());
+            } catch (Exception e) {
+                info.put("state",           -1);
+                info.put("healthy",         false);
+                info.put("operationId",     -1);
+                info.put("lastOperationId", -1);
+            }
+            result.add(info);
+        }
+        return result;
     }
 
     /** Takes an idle assembly station from the pool and marks it active. Returns null if none available. */

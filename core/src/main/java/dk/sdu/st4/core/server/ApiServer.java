@@ -35,10 +35,11 @@ public class ApiServer {
 
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
-        server.createContext("/api/status",  ex -> handle(ex, this::handleStatus));
-        server.createContext("/api/events",  ex -> handle(ex, this::handleEvents));
-        server.createContext("/api/control", ex -> handle(ex, this::handleControl));
-        server.createContext("/",            ex -> handle(ex, this::handleStatic));
+        server.createContext("/api/status",   ex -> handle(ex, this::handleStatus));
+        server.createContext("/api/events",   ex -> handle(ex, this::handleEvents));
+        server.createContext("/api/control",  ex -> handle(ex, this::handleControl));
+        server.createContext("/api/machines", ex -> handle(ex, this::handleMachines));
+        server.createContext("/",             ex -> handle(ex, this::handleStatic));
         server.setExecutor(Executors.newCachedThreadPool());
         server.start();
     }
@@ -94,6 +95,12 @@ public class ApiServer {
 
         sendJson(ex, 200,
             "{\"ok\":true,\"lineStatus\":\"" + orchestrator.getLineStatus() + "\"}");
+    }
+
+    private void handleMachines(HttpExchange ex) throws IOException {
+        if (isPreflight(ex)) return;
+        if (!"GET".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+        sendJson(ex, 200, orchestrator.machinesJson());
     }
 
     private void handleStatic(HttpExchange ex) throws IOException {

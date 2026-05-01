@@ -108,6 +108,64 @@ public class ProductionOrchestrator {
         return new ArrayList<>(events);
     }
 
+    public String machinesJson() {
+        StringBuilder sb = new StringBuilder("{");
+
+        sb.append("\"agv\":[");
+        List<Map<String, Object>> agvList = agvRegistry.getPoolInfo();
+        for (int i = 0; i < agvList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = agvList.get(i);
+            Object battery = m.get("battery");
+            Object state   = m.get("agvState");
+            Object program = m.get("program");
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"battery\":").append(battery != null ? battery : "null").append(",")
+              .append("\"agvState\":").append(state   != null ? "\"" + state   + "\"" : "null").append(",")
+              .append("\"program\":") .append(program != null ? "\"" + escapeJson((String) program) + "\"" : "null")
+              .append("}");
+        }
+        sb.append("],");
+
+        sb.append("\"warehouse\":[");
+        List<Map<String, Object>> whList = warehouseRegistry.getPoolInfo();
+        for (int i = 0; i < whList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = whList.get(i);
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"warehouseState\":").append(m.get("warehouseState"))
+              .append("}");
+        }
+        sb.append("],");
+
+        sb.append("\"assembly\":[");
+        List<Map<String, Object>> asList = assemblyRegistry.getPoolInfo();
+        for (int i = 0; i < asList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = asList.get(i);
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"state\":").append(m.get("state")).append(",")
+              .append("\"healthy\":").append(m.get("healthy")).append(",")
+              .append("\"operationId\":").append(m.get("operationId")).append(",")
+              .append("\"lastOperationId\":").append(m.get("lastOperationId"))
+              .append("}");
+        }
+        sb.append("]}");
+
+        return sb.toString();
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     // ── production cycle ────────────────────────────────────────────────────
 
     private void cycleLoop() {
