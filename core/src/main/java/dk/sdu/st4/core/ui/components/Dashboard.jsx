@@ -562,14 +562,14 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove, activity }) {
     { k: 'STATE',    v: machine.stateLabel },
     { k: 'SERIAL',   v: machine.serial },
     { k: 'POOL',     v: machine.status === 'active' ? 'In use' : 'Available' },
-    { k: 'PROTOCOL', v: 'SOAP · :8081' },
+    { k: 'PROTOCOL', v: 'SOAP' },
   ] : machine.type === 'agv' ? [
     { k: 'STATE',    v: machine.stateLabel },
     { k: 'BATTERY',  v: machine.battery !== null && machine.battery !== undefined ? Math.round(machine.battery) + '%' : '—' },
     { k: 'PROGRAM',  v: machine._program || '—' },
     { k: 'SERIAL',   v: machine.serial },
     { k: 'POOL',     v: machine.status === 'active' ? 'In use' : 'Available' },
-    { k: 'PROTOCOL', v: 'REST · :8082' },
+    { k: 'PROTOCOL', v: 'REST' },
   ] : [
     { k: 'STATE',      v: machine.stateLabel },
     { k: 'HEALTH',     v: machine.healthy === true ? 'Healthy' : machine.healthy === false ? 'Unhealthy' : '—' },
@@ -577,7 +577,7 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove, activity }) {
     { k: 'LAST OP',    v: machine.lastOperationId >= 0 ? machine.lastOperationId : '—' },
     { k: 'SERIAL',     v: machine.serial },
     { k: 'POOL',       v: machine.status === 'active' ? 'In use' : 'Available' },
-    { k: 'PROTOCOL',   v: 'MQTT · :1883' },
+    { k: 'PROTOCOL',   v: 'MQTT' },
   ];
 
   const accent     = t.accent;

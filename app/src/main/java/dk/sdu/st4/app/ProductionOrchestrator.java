@@ -234,24 +234,23 @@ public class ProductionOrchestrator {
     }
 
     private void waitForAssemblyComplete(IAssembly assembly) throws Exception {
-        long deadline = System.currentTimeMillis() + 60_000;
         int prevLastOp = assembly.getLastOperationId();
 
-        // Wait until EXECUTING (1) or until the operation completes so fast we go straight back to IDLE.
-        // Also catch ERROR (2) immediately.
-        while (System.currentTimeMillis() < deadline) {
+        // Phase 1: wait up to 30 s for EXECUTING (state=1) to appear
+        long startDeadline = System.currentTimeMillis() + 30_000;
+        while (System.currentTimeMillis() < startDeadline) {
             if (stopRequested) return;
-            int state     = assembly.getStatus();
-            int lastOpId  = assembly.getLastOperationId();
+            int state    = assembly.getStatus();
+            int lastOpId = assembly.getLastOperationId();
             if (state == 2) throw new Exception("Assembly station reported ERROR");
-            // Fast-complete: lastOperationId changed and already back to IDLE
-            if (lastOpId != prevLastOp && state == 0) return;
-            if (state == 1) break;   // now executing — fall through to completion wait
+            if (lastOpId != prevLastOp && state == 0) return; // fast-complete before we polled
+            if (state == 1) break;
             sleep(300);
         }
 
-        // Wait for IDLE (done) or ERROR
-        while (System.currentTimeMillis() < deadline) {
+        // Phase 2: wait up to 5 minutes for IDLE (state=0) — assembly operations can be slow
+        long completeDeadline = System.currentTimeMillis() + 300_000;
+        while (System.currentTimeMillis() < completeDeadline) {
             if (stopRequested) return;
             int state = assembly.getStatus();
             if (state == 0) return;
@@ -259,7 +258,7 @@ public class ProductionOrchestrator {
             sleep(300);
         }
 
-        throw new Exception("Assembly station timed out after 60s (state=" + assembly.getStatus()
+        throw new Exception("Assembly station timed out (state=" + assembly.getStatus()
                 + ", lastOp=" + assembly.getLastOperationId() + ")");
     }
 

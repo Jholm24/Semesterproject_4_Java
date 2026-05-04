@@ -49,6 +49,11 @@ public class AssemblyController implements IConnect, IAssembly {
                         JsonObject jsonHealth = JsonParser.parseString(payload).getAsJsonObject();
                         model.isHealthy = jsonHealth.get("IsHealthy").getAsBoolean();
                         break;
+                    case "emulator/response":
+                        // "{ \"ProcessID\": N } finished after NNNms." — operation completed
+                        model.state = 0;
+                        System.out.println("Assembly response: " + payload);
+                        break;
                 }
             }
 
@@ -59,12 +64,15 @@ public class AssemblyController implements IConnect, IAssembly {
 
     // --- IAssembly getters/setters ---//
     @Override public void sendOperationId(int id) {
-
         String json = String.format("{\"ProcessID\": %d}", id);
         try {
+            long deadline = System.currentTimeMillis() + 15_000;
+            while (!mqttClient.isConnected() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(200);
+            }
             MqttMessage message = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
             mqttClient.publish("emulator/operation", message);
-        } catch (MqttException e){
+        } catch (MqttException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -100,6 +108,7 @@ public class AssemblyController implements IConnect, IAssembly {
         mqttClient.subscribe("emulator/status");
         mqttClient.subscribe("emulator/checkhealth");
         mqttClient.subscribe("emulator/operation");
+        mqttClient.subscribe("emulator/response");
     }
 
     // --- IConnect getters/setters ---
@@ -120,12 +129,12 @@ public class AssemblyController implements IConnect, IAssembly {
         try {
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
-            options.setKeepAliveInterval(60);
+            options.setKeepAliveInterval(10);  // ping every 10s to prevent broker idle-timeout drops
             options.setAutomaticReconnect(true);
 
             mqttClient = new MqttClient(
                     "tcp://" + model.broker + ":" + model.port,
-                    UUID.randomUUID().toString(),
+                    machineId,  // stable ID so the broker can deliver queued messages after reconnect
                     new MemoryPersistence()
             );
             mqttClient.setCallback(buildCallback());
