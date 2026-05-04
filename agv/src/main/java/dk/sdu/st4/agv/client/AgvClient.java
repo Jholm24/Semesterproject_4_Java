@@ -43,7 +43,7 @@ public class AgvClient {
 
         // 3. Check response status code
         if (response.statusCode() != 200) {
-            throw new Exception("Unexpected status code: " + response.statusCode());
+            throw new Exception("GET " + endpoint + " → " + response.statusCode() + ": " + response.body());
         }
 
         // 4. Deserialize and return
@@ -69,7 +69,7 @@ public class AgvClient {
 
         // 3. Check response status code
         if (response.statusCode() != 200) {
-            throw new Exception("Unexpected status code: " + response.statusCode());
+            throw new Exception("PUT " + endpoint + " body=" + jsonBody + " → " + response.statusCode() + ": " + response.body());
         }
 
         // 4. Deserialize and return AgvStatus

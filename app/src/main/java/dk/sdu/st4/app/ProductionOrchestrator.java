@@ -7,6 +7,7 @@ import dk.sdu.st4.common.data.AgvStatus;
 import dk.sdu.st4.common.data.enums.AgvProgram;
 import dk.sdu.st4.common.data.enums.AgvState;
 import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.services.IAssembly;
 import dk.sdu.st4.common.services.IWarehouse;
 
 import java.time.LocalTime;
@@ -31,6 +32,7 @@ public class ProductionOrchestrator {
 
     private static final int AGV_POLL_MS = 600;
     private static final int MAX_EVENTS  = 20;
+    private static final int TRAY_ID     = 1;
 
     private final AgvRegistry      agvRegistry;
     private final WarehouseRegistry warehouseRegistry;
@@ -185,37 +187,80 @@ public class ProductionOrchestrator {
     }
 
     private void runOneCycle() throws Exception {
-        IAgv agv           = agvRegistry.acquire();
+        IAgv       agv       = agvRegistry.acquire();
         IWarehouse warehouse = warehouseRegistry.acquire();
+        IAssembly  assembly  = assemblyRegistry.acquire();
 
-        if (agv == null || warehouse == null) {
-            if (agv != null)       agvRegistry.release(agv);
+        if (agv == null || warehouse == null || assembly == null) {
+            if (agv       != null) agvRegistry.release(agv);
             if (warehouse != null) warehouseRegistry.release(warehouse);
+            if (assembly  != null) assemblyRegistry.release(assembly);
             throw new Exception("No machines available to run a cycle");
         }
 
         try {
+            // 1. Warehouse picks tray to outlet
+            log("info", "Warehouse · picking tray " + TRAY_ID);
+            warehouse.PickItem(TRAY_ID, "");
+            log("ok", "Warehouse · tray ready at outlet");
+
+            // 2. AGV: warehouse → assembly
             step(agv, AgvProgram.MoveToStorageOperation,  "AGV · moving to warehouse");
-            step(agv, AgvProgram.PickWarehouseOperation,   "AGV · picking tray from warehouse");
-            log("ok", "Warehouse · tray picked — item ready");
-
+            step(agv, AgvProgram.PickWarehouseOperation,  "AGV · picking tray from warehouse");
             step(agv, AgvProgram.MoveToAssemblyOperation, "AGV · moving to assembly station");
-            step(agv, AgvProgram.PutAssemblyOperation,     "AGV · placing item at assembly station");
+            step(agv, AgvProgram.PutAssemblyOperation,    "AGV · placing item at assembly station");
 
-            log("info", "Assembly station · operation started");
-            sleep(3000); // placeholder until MQTT assemblystation module is implemented
-            if (stopRequested) return;
-            log("ok", "Assembly station · cycle accepted");
+            // 3. Assembly operation (MQTT)
+            log("info", "Assembly station · starting operation");
+            assembly.setExecuteOperation();
+            waitForAssemblyComplete(assembly);
+            log("ok", "Assembly station · operation complete");
 
-            step(agv, AgvProgram.PickAssemblyOperation,   "AGV · picking assembled item");
-            step(agv, AgvProgram.MoveToStorageOperation,  "AGV · returning to warehouse");
-            step(agv, AgvProgram.PutWarehouseOperation,    "AGV · inserting item into warehouse");
+            // 4. AGV: assembly → warehouse
+            step(agv, AgvProgram.PickAssemblyOperation,  "AGV · picking assembled item");
+            step(agv, AgvProgram.MoveToStorageOperation, "AGV · returning to warehouse");
+            step(agv, AgvProgram.PutWarehouseOperation,  "AGV · inserting item into warehouse");
 
+            // 5. Warehouse stores assembled item
+            log("info", "Warehouse · storing assembled item");
+            warehouse.InsertItem(TRAY_ID, "assembled-part", "");
             log("ok", "Cycle complete — assembled item stored");
+
         } finally {
             agvRegistry.release(agv);
             warehouseRegistry.release(warehouse);
+            assemblyRegistry.release(assembly);
         }
+    }
+
+    private void waitForAssemblyComplete(IAssembly assembly) throws Exception {
+        long deadline = System.currentTimeMillis() + 60_000;
+        int prevLastOp = assembly.getLastOperationId();
+
+        // Wait until EXECUTING (1) or until the operation completes so fast we go straight back to IDLE.
+        // Also catch ERROR (2) immediately.
+        while (System.currentTimeMillis() < deadline) {
+            if (stopRequested) return;
+            int state     = assembly.getStatus();
+            int lastOpId  = assembly.getLastOperationId();
+            if (state == 2) throw new Exception("Assembly station reported ERROR");
+            // Fast-complete: lastOperationId changed and already back to IDLE
+            if (lastOpId != prevLastOp && state == 0) return;
+            if (state == 1) break;   // now executing — fall through to completion wait
+            sleep(300);
+        }
+
+        // Wait for IDLE (done) or ERROR
+        while (System.currentTimeMillis() < deadline) {
+            if (stopRequested) return;
+            int state = assembly.getStatus();
+            if (state == 0) return;
+            if (state == 2) throw new Exception("Assembly station reported ERROR");
+            sleep(300);
+        }
+
+        throw new Exception("Assembly station timed out after 60s (state=" + assembly.getStatus()
+                + ", lastOp=" + assembly.getLastOperationId() + ")");
     }
 
     private void step(IAgv agv, AgvProgram program, String description) throws Exception {
