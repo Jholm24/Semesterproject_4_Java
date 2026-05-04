@@ -71,6 +71,11 @@ public class WarehouseRegistry extends DbMachineConnect {
                 connectMachine(sn);
             } catch (Exception e) {
                 System.err.println("[WarehouseRegistry] Failed to connect " + sn + ": " + e.getMessage());
+                Throwable cause = e.getCause();
+                while (cause != null) {
+                    System.err.println("  Caused by: " + cause.getClass().getName() + ": " + cause.getMessage());
+                    cause = cause.getCause();
+                }
             }
         }
     }
