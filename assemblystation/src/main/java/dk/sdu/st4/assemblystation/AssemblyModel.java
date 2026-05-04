@@ -6,7 +6,7 @@ public class AssemblyModel {
 
     // IAssembly — volatile: written by MQTT callback thread, read by orchestrator thread
     public volatile int state;
-    public volatile boolean isHealthy;
+    public volatile boolean isHealthy = true;
     public volatile int operationId;
     public volatile int lastOperationId;
 

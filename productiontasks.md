@@ -51,7 +51,25 @@ Source: task.md — validated against codebase before execution.
 
 ---
 
-## Task 4 — CLAUDE.md update
+## Task 4 — Error fix
+
+**Problem:**
+Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+at ManagerDashboard (<anonymous>:343:29)
+at renderWithHooks (react-dom.development.js:15496:20)
+at updateFunctionComponent (react-dom.development.js:19627:22)
+at beginWork (react-dom.development.js:21650:18)
+at beginWork$1 (react-dom.development.js:27475:16)
+at performUnitOfWork (react-dom.development.js:26609:14)
+at workLoopSync (react-dom.development.js:26515:7)
+at renderRootSync (react-dom.development.js:26483:9)
+at recoverFromConcurrentError (react-dom.development.js:25899:22)
+at performConcurrentWorkOnRoot (react-dom.development.js:25799:24)
+at workLoop (react.development.js:2653:36)
+at flushWork (react.development.js:2626:16)
+at MessagePort.performWorkUntilDeadline (react.development.js:2920:23)Understand this error
+
+## Task 5 — CLAUDE.md update
 
 **Status:** Pending (do last)
 
