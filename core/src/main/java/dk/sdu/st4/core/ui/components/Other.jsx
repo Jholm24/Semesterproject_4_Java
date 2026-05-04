@@ -18,33 +18,54 @@ function TaskBuilder({ nav }) {
   const lineId = nav.activeLine || 'line-1';
   const seqKey = `sb_seq_${lineId}`;
 
-  // Resolve current line name from localStorage or fallback
-  const lineName = (() => {
-    try {
-      const lines = JSON.parse(localStorage.getItem('sb_lines') || '[]');
-      const found = lines.find(l => l.id === lineId);
-      if (found) return found.name;
-    } catch(e) {}
-    const fallbacks = { 'line-1': 'Line-01 · Skateboard', 'line-2': 'Line-02 · Desk Lamp', 'line-3': 'Line-03 · Pending' };
-    return fallbacks[lineId] || lineId.toUpperCase();
-  })();
-
-  const loadSeq = () => {
-    try { const s = JSON.parse(localStorage.getItem(seqKey)); if (Array.isArray(s) && s.length) return s; } catch(e){}
-    return DEFAULT_SEQ.map((id,i) => ({ id, key: 'k'+i }));
-  };
-
-  const [seq, setSeq] = useState(loadSeq);
-  const [dragId, setDragId] = useState(null);
-  const [templateName, setTemplateName] = useState(() => lineName + ' · Full Cycle');
-
-  // Reload seq when active line changes
+  const [lineName, setLineName] = useState(lineId.toUpperCase());
   useEffect(() => {
-    setSeq(loadSeq());
-    setTemplateName(lineName + ' · Full Cycle');
+    fetch(API_BASE + '/api/lines')
+      .then(r => r.json())
+      .then(data => {
+        const found = data.find(l => l.id === lineId);
+        if (found) setLineName(found.name);
+      })
+      .catch(() => {});
   }, [lineId]);
 
-  useEffect(() => { localStorage.setItem(seqKey, JSON.stringify(seq)); }, [seq, seqKey]);
+  const [seq, setSeq] = useState(() => DEFAULT_SEQ.map((id,i) => ({ id, key: 'k'+i })));
+  const [dragId, setDragId] = useState(null);
+  const [templateName, setTemplateName] = useState(lineId.toUpperCase() + ' · Full Cycle');
+  const [savedTemplates, setSavedTemplates] = useState([]);
+  const [saveBanner, setSaveBanner] = useState(false);
+
+  const fetchTemplates = () => {
+    fetch(API_BASE + '/api/templates?lineId=' + lineId)
+      .then(r => r.json())
+      .then(setSavedTemplates)
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    setSeq(DEFAULT_SEQ.map((id,i) => ({ id, key: 'k'+i })));
+    setTemplateName(lineName + ' · Full Cycle');
+    fetchTemplates();
+  }, [lineId, lineName]);
+
+  const saveTemplate = async () => {
+    await fetch(API_BASE + '/api/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lineId, name: templateName, seq: JSON.stringify(seq.map(s => ({id:s.id}))) }),
+    }).catch(() => {});
+    fetchTemplates();
+    setSaveBanner(true);
+    setTimeout(() => setSaveBanner(false), 2000);
+  };
+
+  const loadTemplate = (t) => {
+    try {
+      const parsed = typeof t.seq === 'string' ? JSON.parse(t.seq) : t.seq;
+      setSeq(parsed.map((s,i) => ({ id: s.id, key: 'k'+i+Date.now() })));
+      setTemplateName(t.name);
+    } catch {}
+  };
 
   const addStep = (pid) => setSeq(s => [...s, { id: pid, key: 'k'+Date.now()+Math.random() }]);
   const removeStep = (key) => setSeq(s => s.filter(x => x.key !== key));
@@ -69,8 +90,17 @@ function TaskBuilder({ nav }) {
             <div><span className="mono tb-k">STEPS</span><span className="tb-v">{seq.length}</span></div>
             <div><span className="mono tb-k">DUR</span><span className="tb-v">{totalDur.toFixed(1)}s</span></div>
           </div>
+          {savedTemplates.length > 0 && (
+            <select className="nl-input" style={{fontSize:12,padding:'4px 8px'}}
+              defaultValue="" onChange={e => { const t = savedTemplates.find(x=>String(x.id)===e.target.value); if(t) loadTemplate(t); e.target.value=''; }}>
+              <option value="" disabled>Load template…</option>
+              {savedTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           <button className="btn-ghost" onClick={() => setSeq(DEFAULT_SEQ.map((id,i)=>({id,key:'k'+i})))}>Reset</button>
-          <button className="btn-primary">Save Template</button>
+          <button className="btn-primary" onClick={saveTemplate} style={{position:'relative'}}>
+            {saveBanner ? '✓ Saved' : 'Save Template'}
+          </button>
         </div>
       </header>
 
@@ -187,14 +217,6 @@ function NewEmployeeModal({ onClose, onCreate }) {
     if (!usernameTouched) setUsername(deriveUsername(val));
   };
 
-  const lines = (() => {
-    try {
-      const ls = JSON.parse(localStorage.getItem('sb_lines') || '[]');
-      if (ls.length) return ['—', ...ls.map(l => l.name)];
-    } catch(e) {}
-    return ['—','Line-01 · Skateboard','Line-02 · Desk Lamp','Line-03 · Pending'];
-  })();
-
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -210,7 +232,7 @@ function NewEmployeeModal({ onClose, onCreate }) {
     const initials = name.trim().split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
     const id = 'e' + Date.now();
     const since = new Date().toISOString().slice(0,7);
-    onCreate({ id, name: name.trim(), username: username.trim() || deriveUsername(name), role, line: '—', since, pic: initials, password });
+    onCreate({ id, name: name.trim(), username: username.trim() || deriveUsername(name), role, since, pic: initials, password });
   };
 
   return (
@@ -317,14 +339,6 @@ function EditEmployeeModal({ employee, onClose, onSave }) {
   const [newPassword, setNewPassword] = useState('');
   const [copied, setCopied]   = useState(false);
 
-  const lines = (() => {
-    try {
-      const ls = JSON.parse(localStorage.getItem('sb_lines') || '[]');
-      if (ls.length) return ['—', ...ls.map(l => l.name)];
-    } catch(e) {}
-    return ['—','Line-01 · Skateboard','Line-02 · Desk Lamp','Line-03 · Pending'];
-  })();
-
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -412,28 +426,56 @@ function EditEmployeeModal({ employee, onClose, onSave }) {
 }
 
 function Employees({ nav }) {
-  const [employees, setEmployees] = useState(() => {
-    const s = localStorage.getItem('sb_employees_v2');
-    if (s) try { return JSON.parse(s); } catch(e){}
-    return [
-      { id:'e1', name:'Lars Ottesen', role:'operator', line:'Line-01', since:'2023-08', pic:'LO' },
-      { id:'e2', name:'Mette Nørgaard', role:'operator', line:'Line-02', since:'2024-01', pic:'MN' },
-      { id:'e3', name:'Anders Kjær', role:'operator', line:'Line-01', since:'2022-11', pic:'AK' },
-      { id:'e4', name:'Sofie Bech', role:'operator', line:'Line-03', since:'2025-02', pic:'SB' },
-      { id:'e5', name:'Mikkel Hansen', role:'manager', line:'—', since:'2021-05', pic:'MH' },
-      { id:'e6', name:'Johan Vest', role:'operator', line:'—', since:'2023-03', pic:'JV' },
-    ];
-  });
-  useEffect(() => { localStorage.setItem('sb_employees_v2', JSON.stringify(employees)); }, [employees]);
+  const [employees, setEmployees] = useState([]);
+  const [lines, setLines] = useState([]);
   const [q, setQ] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
-  const filtered = employees.filter(e => e.name.toLowerCase().includes(q.toLowerCase()));
-
   const [editingEmp, setEditingEmp] = useState(null);
   const [removingEmp, setRemovingEmp] = useState(null);
-  const addEmployee = (emp) => { setEmployees(es => [...es, emp]); setShowNewModal(false); };
-  const updateEmployee = (updated) => { setEmployees(es => es.map(e => e.id===updated.id ? {...e, ...updated} : e)); setEditingEmp(null); };
-  const removeEmployee = (id) => { setEmployees(es => es.filter(e => e.id !== id)); setRemovingEmp(null); };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch(API_BASE + '/api/employees');
+      if (!res.ok) return;
+      setEmployees(await res.json());
+    } catch {}
+  };
+  useEffect(() => {
+    fetchEmployees();
+    fetch(API_BASE + '/api/lines').then(r => r.json()).then(setLines).catch(() => {});
+  }, []);
+
+  const filtered = employees.filter(e => e.name.toLowerCase().includes(q.toLowerCase()));
+
+  const addEmployee = async (emp) => {
+    await fetch(API_BASE + '/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(emp),
+    }).catch(() => {});
+    await fetchEmployees();
+    setShowNewModal(false);
+  };
+
+  const updateEmployee = async (updated) => {
+    await fetch(API_BASE + '/api/employees', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    }).catch(() => {});
+    await fetchEmployees();
+    setEditingEmp(null);
+  };
+
+  const removeEmployee = async (id) => {
+    await fetch(API_BASE + '/api/employees', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+    await fetchEmployees();
+    setRemovingEmp(null);
+  };
 
   return (
     <main className="emp-page">
@@ -452,29 +494,32 @@ function Employees({ nav }) {
         <div className="emp-row emp-row-head mono">
           <span>Employee</span><span>Role</span><span>Line</span><span>Since</span><span>Action</span>
         </div>
-        {filtered.map(e => (
+        {filtered.map(e => {
+          const assignedLine = lines.find(l => (l.operators || []).includes(e.id));
+          return (
           <div key={e.id} className="emp-row">
             <div className="emp-name">
               <div className="emp-pic">{e.pic}</div>
               <div>
                 <div className="emp-n">{e.name}</div>
-                <div className="mono emp-id">{e.username ? e.username : '#'+e.id.toUpperCase()}</div>
+                <div className="mono emp-id">{e.username || ('#'+e.id.toUpperCase())}</div>
               </div>
             </div>
             <div className="mono">{e.role.toUpperCase()}</div>
-            <div>
-              <select className="emp-line-sel" value={e.line || '—'} onChange={ev => setEmployees(es => es.map(x => x.id===e.id ? {...x, line: ev.target.value} : x))}>
-                {(()=>{ try { const ls=JSON.parse(localStorage.getItem('sb_lines')||'[]'); if(ls.length) return ['—',...ls.map(l=>l.name)].map(l=><option key={l}>{l}</option>); } catch(ex){} return ['—','Line-01 · Skateboard','Line-02 · Desk Lamp','Line-03 · Pending'].map(l=><option key={l}>{l}</option>); })()}
-              </select>
+            <div className="mono" style={{fontSize:12, color:'var(--ink-3)'}}>
+              {assignedLine ? assignedLine.name : '—'}
             </div>
             <div className="mono">{e.since}</div>
             <div className="emp-handle">
-              <button className="btn-ghost-sm">Tasks</button>
+              <button className="btn-ghost-sm" onClick={() => {
+                if (assignedLine) { nav.setActiveLine(assignedLine.id); nav.setView('builder'); }
+              }} disabled={!assignedLine}>Tasks</button>
               <button className="btn-ghost-sm" onClick={() => setEditingEmp(e)}>Edit</button>
               <button className="btn-ghost-sm btn-danger" onClick={() => setRemovingEmp(e)}>Remove</button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       {showNewModal && <NewEmployeeModal onClose={() => setShowNewModal(false)} onCreate={addEmployee} />}
       {editingEmp && <EditEmployeeModal employee={editingEmp} onClose={() => setEditingEmp(null)} onSave={updateEmployee} />}
@@ -484,110 +529,73 @@ function Employees({ nav }) {
 }
 
 function LinesManager({ nav }) {
-  const LINE_SEEDS = [
-    { id:'line-1', name:'Line-01 · Skateboard', product:'Pro Deck 8.0"', status:'running', cycles:247, success:98.4, components:{warehouse:1,agv:1,assembly:1}, ops:3, machines:['wh-1','agv-1','as-1'], operators:[] },
-    { id:'line-2', name:'Line-02 · Desk Lamp',  product:'Studio Lamp v2', status:'paused',  cycles:128, success:97.1, components:{warehouse:1,agv:2,assembly:1}, ops:2, machines:['wh-2','agv-2','agv-3','as-2'], operators:[] },
-    { id:'line-3', name:'Line-03 · Pending',    product:'—',              status:'standby', cycles:0,   success:0,    components:{warehouse:0,agv:0,assembly:0}, ops:0, machines:[], operators:[] },
-  ];
-  const [lines, setLines] = useState(() => {
-    const s = localStorage.getItem('sb_lines');
-    if (s) try {
-      const parsed = JSON.parse(s);
-      if (Array.isArray(parsed) && parsed.length) {
-        // Migrate legacy entries: ensure every line has machines[] and operators[].
-        return parsed.map(L => {
-          const seed = LINE_SEEDS.find(s => s.id === L.id);
-          return {
-            ...L,
-            machines: Array.isArray(L.machines) ? L.machines : (seed ? seed.machines : []),
-            operators: Array.isArray(L.operators) ? L.operators : (seed ? seed.operators : []),
-          };
-        });
-      }
-    } catch(e){}
-    return LINE_SEEDS;
-  });
-  useEffect(() => {
-    localStorage.setItem('sb_lines', JSON.stringify(lines));
-    window.dispatchEvent(new CustomEvent('sb-lines-change', { detail: lines }));
-  }, [lines]);
-  const [modal, setModal] = useState(false); // false | 'create' | editingLine
+  const [lines, setLines] = useState([]);
+  const [modal, setModal] = useState(false);
   const [removing, setRemoving] = useState(null);
+
+  const fetchLines = async () => {
+    try {
+      const res = await fetch(API_BASE + '/api/lines');
+      if (!res.ok) return;
+      const data = await res.json();
+      setLines(data);
+      window.dispatchEvent(new CustomEvent('sb-lines-change', { detail: data }));
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchLines();
+    const id = setInterval(fetchLines, 4000);
+    return () => clearInterval(id);
+  }, []);
 
   const computeComps = (machines) => {
     const c = { warehouse: 0, agv: 0, assembly: 0 };
-    machines.forEach(mid => {
-      if (mid.startsWith('wh')) c.warehouse++;
-      else if (mid.startsWith('agv')) c.agv++;
-      else if (mid.startsWith('as')) c.assembly++;
+    (machines || []).forEach(sn => {
+      if (sn.startsWith('WH')) c.warehouse++;
+      else if (sn.startsWith('AG')) c.agv++;
+      else if (sn.startsWith('AS')) c.assembly++;
     });
     return c;
   };
 
-  const createLine = (draft) => {
-    // figure out next id
+  const createLine = async (draft) => {
     const used = new Set(lines.map(l => l.id));
     let n = 1; while (used.has('line-' + n)) n++;
     const id = 'line-' + n;
     const paddedNum = String(n).padStart(2,'0');
-    const comps = computeComps(draft.machines);
-    const newLine = {
-      id,
-      name: `Line-${paddedNum} · ${draft.title || 'Untitled'}`,
-      product: draft.product || '—',
-      status: 'standby',
-      cycles: 0, success: 0,
-      components: comps,
-      ops: draft.operators.length,
-      machines: draft.machines,
-      operators: draft.operators,
-    };
-    setLines(ls => [...ls, newLine]);
-
-    // seed byLine so the topbar / dashboard pick it up
-    try {
-      const by = JSON.parse(localStorage.getItem('sb_byline_v3') || '{}');
-      by[id] = { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: draft.machines, log: [{ t: new Date().toTimeString().slice(0,8), lvl: 'info', m: `Line created · ${draft.title}` }] };
-      localStorage.setItem('sb_byline_v3', JSON.stringify(by));
-      window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: by }));
-    } catch(e) {}
+    const name = `Line-${paddedNum} · ${draft.title || 'Untitled'}`;
+    await fetch(API_BASE + '/api/lines', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, title: name, product: draft.product || '—',
+                             machines: draft.machines, operators: draft.operators }),
+    }).catch(() => {});
+    await fetchLines();
     setModal(false);
   };
 
-  const updateLine = (id, draft) => {
-    // preserve the Line-NN prefix, swap the product label after the ·
+  const updateLine = async (id, draft) => {
     const paddedNum = id.replace('line-','').padStart(2,'0');
-    const comps = computeComps(draft.machines);
-    setLines(ls => ls.map(L => L.id === id ? {
-      ...L,
-      name: `Line-${paddedNum} · ${draft.title || 'Untitled'}`,
-      product: draft.product || '—',
-      components: comps,
-      ops: draft.operators.length,
-      machines: draft.machines,
-      operators: draft.operators,
-    } : L));
-    // sync machines into byLine
-    try {
-      const by = JSON.parse(localStorage.getItem('sb_byline_v3') || '{}');
-      if (by[id]) {
-        by[id] = { ...by[id], machines: draft.machines };
-        localStorage.setItem('sb_byline_v3', JSON.stringify(by));
-        window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: by }));
-      }
-    } catch(e) {}
+    const name = `Line-${paddedNum} · ${draft.title || 'Untitled'}`;
+    await fetch(API_BASE + '/api/lines', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, title: name, product: draft.product || '—',
+                             machines: draft.machines, operators: draft.operators }),
+    }).catch(() => {});
+    await fetchLines();
     setModal(false);
   };
 
-  const removeLine = (id) => {
-    setLines(ls => ls.filter(L => L.id !== id));
-    try {
-      const by = JSON.parse(localStorage.getItem('sb_byline_v3') || '{}');
-      delete by[id];
-      localStorage.setItem('sb_byline_v3', JSON.stringify(by));
-      window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: by }));
-    } catch(e) {}
+  const removeLine = async (id) => {
+    await fetch(API_BASE + '/api/lines', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
     if (nav.activeLine === id) nav.setActiveLine('line-1');
+    await fetchLines();
     setRemoving(null);
   };
 
@@ -603,7 +611,9 @@ function LinesManager({ nav }) {
         </div>
       </header>
       <div className="lines-grid">
-        {lines.map(L => (
+        {lines.map(L => {
+          const comps = computeComps(L.machines);
+          return (
           <article key={L.id} className={`line-card line-status-${L.status}`}>
             <header className="line-card-head">
               <div>
@@ -618,13 +628,13 @@ function LinesManager({ nav }) {
             </div>
             <div className="line-card-stats">
               <div><div className="mono line-card-k">CYCLES</div><div className="line-card-v">{L.cycles}</div></div>
-              <div><div className="mono line-card-k">SUCCESS</div><div className="line-card-v">{L.success.toFixed(1)}%</div></div>
-              <div><div className="mono line-card-k">OPERATORS</div><div className="line-card-v">{L.ops}</div></div>
+              <div><div className="mono line-card-k">SUCCESS</div><div className="line-card-v">{(L.success||0).toFixed(1)}%</div></div>
+              <div><div className="mono line-card-k">OPERATORS</div><div className="line-card-v">{(L.operators||[]).length}</div></div>
             </div>
             <div className="line-card-comps">
-              <div className="lcc" style={{'--c':'var(--c-wh)'}}><span className="mono">WH</span><span>{L.components.warehouse}</span></div>
-              <div className="lcc" style={{'--c':'var(--c-agv)'}}><span className="mono">AGV</span><span>{L.components.agv}</span></div>
-              <div className="lcc" style={{'--c':'var(--c-as)'}}><span className="mono">AS</span><span>{L.components.assembly}</span></div>
+              <div className="lcc" style={{'--c':'var(--c-wh)'}}><span className="mono">WH</span><span>{comps.warehouse}</span></div>
+              <div className="lcc" style={{'--c':'var(--c-agv)'}}><span className="mono">AGV</span><span>{comps.agv}</span></div>
+              <div className="lcc" style={{'--c':'var(--c-as)'}}><span className="mono">AS</span><span>{comps.assembly}</span></div>
             </div>
             <footer className="line-card-foot">
               <button className="btn-ghost-sm" onClick={() => { nav.setActiveLine(L.id); nav.setView('dashboard'); }}>Open →</button>
@@ -633,7 +643,8 @@ function LinesManager({ nav }) {
               <button className="btn-ghost-sm btn-ghost-danger" onClick={() => setRemoving(L)} disabled={lines.length <= 1}>Remove</button>
             </footer>
           </article>
-        ))}
+        );
+        })}
       </div>
       {modal && (
         <NewLineModal
@@ -674,43 +685,24 @@ function NewLineModal({ onClose, onCreate, onUpdate, existingLines, editing }) {
     (l.machines || []).forEach(m => occupied.add(m));
   });
 
+  // Machine pool from /api/machines
+  const [rawPool, setRawPool] = useState({ agv: [], warehouse: [], assembly: [] });
+  React.useEffect(() => {
+    fetch(API_BASE + '/api/machines').then(r => r.json()).then(setRawPool).catch(() => {});
+  }, []);
   const POOL = {
-    warehouse: [
-      { id:'wh-1', name:'Parts Warehouse 01', loc:'Hall A · Bay 1' },
-      { id:'wh-2', name:'Parts Warehouse 02', loc:'Hall A · Bay 2' },
-      { id:'wh-3', name:'Parts Warehouse 03', loc:'Hall A · Bay 3' },
-      { id:'wh-4', name:'Parts Warehouse 04', loc:'Hall B · Bay 1' },
-      { id:'wh-5', name:'Parts Warehouse 05', loc:'Hall B · Bay 2' },
-    ],
-    agv: [
-      { id:'agv-1', name:'AGV 01', loc:'Track N' },
-      { id:'agv-2', name:'AGV 02', loc:'Dock 2' },
-      { id:'agv-3', name:'AGV 03', loc:'Dock 3' },
-      { id:'agv-4', name:'AGV 04', loc:'Track S' },
-      { id:'agv-5', name:'AGV 05', loc:'Dock 5' },
-    ],
-    assembly: [
-      { id:'as-1', name:'Assemble Table 01', loc:'Station 1' },
-      { id:'as-2', name:'Assemble Table 02', loc:'Station 2' },
-      { id:'as-3', name:'Assemble Table 03', loc:'Station 3' },
-      { id:'as-4', name:'Assemble Table 04', loc:'Station 4' },
-      { id:'as-5', name:'Assemble Table 05', loc:'Station 5' },
-    ],
+    warehouse: (rawPool.warehouse || []).map(m => ({ id: m.serialNumber, name: 'Warehouse ' + m.serialNumber })),
+    agv:       (rawPool.agv       || []).map(m => ({ id: m.serialNumber, name: 'AGV '       + m.serialNumber })),
+    assembly:  (rawPool.assembly  || []).map(m => ({ id: m.serialNumber, name: 'Assembly '  + m.serialNumber })),
   };
 
-  // employees
-  const EMPS = (() => {
-    try {
-      const s = localStorage.getItem('sb_employees_v2');
-      if (s) return JSON.parse(s).filter(e => e.role === 'operator' && e.status !== 'unemployed');
-    } catch(e){}
-    return [
-      { id:'e1', name:'Lars Ottesen', pic:'LO', shift:'Day' },
-      { id:'e2', name:'Mette Nørgaard', pic:'MN', shift:'Evening' },
-      { id:'e3', name:'Anders Kjær', pic:'AK', shift:'Day' },
-      { id:'e4', name:'Sofie Bech', pic:'SB', shift:'Day' },
-    ];
-  })();
+  const [EMPS, setEmps] = React.useState([]);
+  React.useEffect(() => {
+    fetch(API_BASE + '/api/employees')
+      .then(r => r.json())
+      .then(data => setEmps(data.filter(e => e.role === 'operator')))
+      .catch(() => {});
+  }, []);
 
   const togglePick = (id) => setPicked(p => p.includes(id) ? p.filter(x => x!==id) : [...p, id]);
   const toggleOp   = (id) => setOps(o => o.includes(id) ? o.filter(x => x!==id) : [...o, id]);
@@ -801,7 +793,7 @@ function NewLineModal({ onClose, onCreate, onUpdate, existingLines, editing }) {
                             </span>
                             <span className="nl-mbody">
                               <span className="nl-mname">{m.name}</span>
-                              <span className="mono nl-mmeta">{isOccupied ? 'In use' : m.loc}</span>
+                              <span className="mono nl-mmeta">{isOccupied ? 'In use' : m.id}</span>
                             </span>
                           </button>
                         </li>
@@ -848,9 +840,8 @@ function NewLineModal({ onClose, onCreate, onUpdate, existingLines, editing }) {
 
 function OperatorDashboard({ nav }) {
   const [assigned] = useState(['Line-01 · Skateboard']);
-  const [lineStatus, setLineStatus] = useState(() => localStorage.getItem('sb_linestatus') || 'standby');
+  const [lineStatus, setLineStatus] = useState('standby');
   const [cycles, setCycles] = useState(247);
-  useEffect(() => { localStorage.setItem('sb_linestatus', lineStatus); }, [lineStatus]);
   useEffect(() => {
     if (lineStatus !== 'running') return;
     const id = setInterval(() => setCycles(c => c+1), 1500);

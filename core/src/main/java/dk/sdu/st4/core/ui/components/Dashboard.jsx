@@ -78,37 +78,48 @@ function toAssemblyMachine(m) {
   };
 }
 
-// ── Static config ─────────────────────────────────────────────────────────────
-
-const LINES = [
-  { id: 'line-1', name: 'Line-01 · Skateboard', product: 'Pro Deck 8.0"' },
-  { id: 'line-2', name: 'Line-02 · Desk Lamp', product: 'Studio Lamp v2' },
-  { id: 'line-3', name: 'Line-03 · Pending', product: '—' },
-];
-
-const LINE_DEFAULTS = {
-  'line-1': { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], log: [] },
-  'line-2': { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], log: [] },
-  'line-3': { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], log: [] },
-};
+// ── Lines fetched from DB via /api/lines ──────────────────────────────────────
 
 // ── Manager dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard({ nav }) {
-  const currentLine = LINES.find(l => l.id === nav.activeLine) || LINES[0];
-
-  const [byLine, setByLine] = useState(() => {
-    const saved = localStorage.getItem('sb_byline_v4');
-    if (saved) { try { return JSON.parse(saved); } catch(e){} }
-    return LINE_DEFAULTS;
-  });
+  // Lines config from DB (id, name, product, status, cycles, success, warnings, machines, operators)
+  const [dbLines, setDbLines] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('sb_byline_v4', JSON.stringify(byLine));
-    window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: byLine }));
-  }, [byLine]);
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/lines');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setDbLines(data);
+        // Merge DB line data into byLine state (machines/operators from DB; preserve local UI state)
+        setByLine(prev => {
+          const next = { ...prev };
+          data.forEach(l => {
+            if (!next[l.id]) {
+              next[l.id] = { status: l.status, cycles: l.cycles, warnings: l.warnings,
+                             success: l.success, machines: l.machines, operators: l.operators, log: [] };
+            } else {
+              next[l.id] = { ...next[l.id], machines: l.machines, operators: l.operators };
+            }
+          });
+          return next;
+        });
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
 
-  const L = byLine[currentLine.id] || LINE_DEFAULTS[currentLine.id];
+  const currentLine = dbLines.find(l => l.id === nav.activeLine) || dbLines[0] || { id: '', name: '', product: '' };
+
+  const [byLine, setByLine] = useState({});
+
+  const L = byLine[currentLine.id] || { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], operators: [], log: [] };
   const { machines: machineIds, status: lineStatus, cycles, warnings, success, log } = L;
 
   // ── Live machine pool from backend ──────────────────────────────────────
@@ -145,11 +156,9 @@ function ManagerDashboard({ nav }) {
 
   const occupiedIds = useMemo(() => {
     const s = new Set();
-    Object.values(byLine).forEach(lineData => {
-      (lineData.machines || []).forEach(id => s.add(id));
-    });
+    dbLines.forEach(l => (l.machines || []).forEach(id => s.add(id)));
     return s;
-  }, [byLine]);
+  }, [dbLines]);
 
   const availableByType = {
     warehouse: (machinePool.warehouse || []).filter(m => !occupiedIds.has(m.id)),
@@ -157,7 +166,22 @@ function ManagerDashboard({ nav }) {
     assembly:  (machinePool.assembly  || []).filter(m => !occupiedIds.has(m.id)),
   };
 
-  const patchLine = (patch) => setByLine(b => ({ ...b, [currentLine.id]: { ...b[currentLine.id], ...patch } }));
+  const patchLine = (patch) => setByLine(b => {
+    const updated = { ...b, [currentLine.id]: { ...b[currentLine.id], ...patch } };
+    // Persist status/cycles/success/warnings changes to DB
+    if (patch.status !== undefined || patch.cycles !== undefined ||
+        patch.success !== undefined || patch.warnings !== undefined) {
+      const L2 = updated[currentLine.id];
+      fetch(API_BASE + '/api/lines', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentLine.id, status: L2.status,
+          cycles: L2.cycles || 0, success: L2.success || 0, warnings: L2.warnings || 0 }),
+      }).catch(() => {});
+    }
+    window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: updated }));
+    return updated;
+  });
   const setMachines = (next) => patchLine({ machines: typeof next === 'function' ? next(machineIds) : next });
   const setLineStatus = (s) => patchLine({ status: s });
   const setLog = (next) => patchLine({ log: typeof next === 'function' ? next(L.log) : next });

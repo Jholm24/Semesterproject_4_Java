@@ -6,67 +6,32 @@ function Topbar({ nav }) {
   const notifRef = React.useRef(null);
   const btnRef = React.useRef(null);
 
-  const DEFAULT_LINES = [
-    { id: 'line-1', name: 'Line-01 · Skateboard' },
-    { id: 'line-2', name: 'Line-02 · Desk Lamp' },
-    { id: 'line-3', name: 'Line-03 · Pending' },
-  ];
-  const [LINES, setLines] = React.useState(() => {
-    try {
-      const raw = localStorage.getItem('sb_lines');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) return parsed.map(l => ({ id: l.id, name: l.name }));
-      }
-    } catch(e) {}
-    return DEFAULT_LINES;
-  });
-  React.useEffect(() => {
-    const read = () => {
-      try {
-        const raw = localStorage.getItem('sb_lines');
-        if (!raw) { setLines(DEFAULT_LINES); return; }
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) setLines(parsed.map(l => ({ id: l.id, name: l.name })));
-      } catch(e) {}
-    };
-    read();
-    window.addEventListener('sb-lines-change', read);
-    window.addEventListener('storage', read);
-    const id = setInterval(read, 1500);
-    return () => {
-      window.removeEventListener('sb-lines-change', read);
-      window.removeEventListener('storage', read);
-      clearInterval(id);
-    };
-  }, []);
-  const currentLine = LINES.find(l => l.id === nav.activeLine) || LINES[0];
+  const [LINES, setLines] = React.useState([]);
+  const [lineStatus, setLineStatus] = React.useState('standby');
 
-  // Subscribe to the per-line state (persisted + broadcast by Dashboard) so the status dot is live.
-  const [lineStatus, setLineStatus] = React.useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('sb_byline_v3') || '{}');
-      return saved?.[currentLine.id]?.status || 'standby';
-    } catch(e) { return 'standby'; }
-  });
   React.useEffect(() => {
-    const read = (byLineFromEvent) => {
+    let active = true;
+    const poll = async () => {
       try {
-        const saved = byLineFromEvent || JSON.parse(localStorage.getItem('sb_byline_v3') || '{}');
-        const s = saved?.[currentLine.id]?.status || 'standby';
-        setLineStatus(s);
-      } catch(e) {}
+        const res = await fetch('http://localhost:8080/api/lines');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setLines(data.map(l => ({ id: l.id, name: l.name, status: l.status })));
+        const cur = data.find(l => l.id === nav.activeLine) || data[0];
+        if (cur) setLineStatus(cur.status || 'standby');
+      } catch {}
     };
-    read();
-    const onChange = (e) => read(e.detail);
-    const onStorage = () => read();
-    window.addEventListener('sb-byline-change', onChange);
-    window.addEventListener('storage', onStorage);
-    return () => {
-      window.removeEventListener('sb-byline-change', onChange);
-      window.removeEventListener('storage', onStorage);
+    poll();
+    const id = setInterval(poll, 3000);
+    const onEvent = (e) => {
+      if (e.detail && e.detail[nav.activeLine]) setLineStatus(e.detail[nav.activeLine].status || 'standby');
     };
-  }, [currentLine.id]);
+    window.addEventListener('sb-byline-change', onEvent);
+    return () => { active = false; clearInterval(id); window.removeEventListener('sb-byline-change', onEvent); };
+  }, [nav.activeLine]);
+
+  const currentLine = LINES.find(l => l.id === nav.activeLine) || LINES[0] || { id: '', name: 'Loading…' };
 
   const STATUS_META = {
     running: { cls: 'ok',    label: 'RUNNING' },
