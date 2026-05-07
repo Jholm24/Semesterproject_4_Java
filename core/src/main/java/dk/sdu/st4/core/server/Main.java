@@ -4,7 +4,7 @@ import dk.sdu.st4.app.ProductionOrchestrator;
 import dk.sdu.st4.app.Registries.AgvRegistry;
 import dk.sdu.st4.app.Registries.AssemblyRegistry;
 import dk.sdu.st4.app.Registries.WarehouseRegistry;
-import dk.sdu.st4.common.config.AppConfig;
+import dk.sdu.st4.common.db.DbLineRepository;
 
 import java.nio.file.Path;
 
@@ -28,8 +28,15 @@ public class Main {
         WarehouseRegistry warehouseRegistry = new WarehouseRegistry();
         AssemblyRegistry  assemblyRegistry  = new AssemblyRegistry();
 
+        agvRegistry.loadFromDb();
+        warehouseRegistry.loadFromDb();
+        assemblyRegistry.loadFromDb();
+
+        java.util.List<java.util.Map<String, Object>> lines = DbLineRepository.getAllLines();
+        String lineId = lines.isEmpty() ? null : (String) lines.get(0).get("id");
+
         ProductionOrchestrator orchestrator = new ProductionOrchestrator(
-                agvRegistry, warehouseRegistry, assemblyRegistry);
+                agvRegistry, warehouseRegistry, assemblyRegistry, lineId);
         ApiServer server = new ApiServer(orchestrator, port, uiRoot);
 
         server.start();

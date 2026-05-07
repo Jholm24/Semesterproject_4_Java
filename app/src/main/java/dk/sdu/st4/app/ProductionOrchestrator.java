@@ -3,10 +3,12 @@ package dk.sdu.st4.app;
 import dk.sdu.st4.app.Registries.AgvRegistry;
 import dk.sdu.st4.app.Registries.AssemblyRegistry;
 import dk.sdu.st4.app.Registries.WarehouseRegistry;
+import dk.sdu.st4.common.db.DbLineRepository;
 import dk.sdu.st4.common.data.AgvStatus;
 import dk.sdu.st4.common.data.enums.AgvProgram;
 import dk.sdu.st4.common.data.enums.AgvState;
 import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.services.IAssembly;
 import dk.sdu.st4.common.services.IWarehouse;
 
 import java.time.LocalTime;
@@ -31,15 +33,19 @@ public class ProductionOrchestrator {
 
     private static final int AGV_POLL_MS = 600;
     private static final int MAX_EVENTS  = 20;
+    private static final int TRAY_ID     = 1;
 
     private final AgvRegistry      agvRegistry;
     private final WarehouseRegistry warehouseRegistry;
     private final AssemblyRegistry  assemblyRegistry;
+    private final String            lineId;
 
     // ── volatile state ──────────────────────────────────────────────────────
     private volatile String  lineStatus     = "standby";
     private volatile boolean stopRequested  = false;
     private volatile boolean pauseRequested = false;
+    private volatile int     cycleCount     = 0;
+    private volatile int     failCount      = 0;
 
     // cached AGV snapshot, updated each poll tick
     private volatile AgvStatus lastAgvStatus = new AgvStatus(0, "", AgvState.Idle, "");
@@ -49,10 +55,12 @@ public class ProductionOrchestrator {
 
     public ProductionOrchestrator(AgvRegistry agvRegistry,
                                   WarehouseRegistry warehouseRegistry,
-                                  AssemblyRegistry assemblyRegistry) {
+                                  AssemblyRegistry assemblyRegistry,
+                                  String lineId) {
         this.agvRegistry       = agvRegistry;
         this.warehouseRegistry = warehouseRegistry;
         this.assemblyRegistry  = assemblyRegistry;
+        this.lineId            = lineId;
     }
 
     // ── public control API ──────────────────────────────────────────────────
@@ -90,6 +98,8 @@ public class ProductionOrchestrator {
     // ── status accessors ────────────────────────────────────────────────────
 
     public String getLineStatus() { return lineStatus; }
+    public int    getCycleCount() { return cycleCount; }
+    public int    getFailCount()  { return failCount;  }
 
     public String agvJson() {
         AgvStatus s = lastAgvStatus;
@@ -108,6 +118,64 @@ public class ProductionOrchestrator {
         return new ArrayList<>(events);
     }
 
+    public String machinesJson() {
+        StringBuilder sb = new StringBuilder("{");
+
+        sb.append("\"agv\":[");
+        List<Map<String, Object>> agvList = agvRegistry.getPoolInfo();
+        for (int i = 0; i < agvList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = agvList.get(i);
+            Object battery = m.get("battery");
+            Object state   = m.get("agvState");
+            Object program = m.get("program");
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"battery\":").append(battery != null ? battery : "null").append(",")
+              .append("\"agvState\":").append(state   != null ? "\"" + state   + "\"" : "null").append(",")
+              .append("\"program\":") .append(program != null ? "\"" + escapeJson((String) program) + "\"" : "null")
+              .append("}");
+        }
+        sb.append("],");
+
+        sb.append("\"warehouse\":[");
+        List<Map<String, Object>> whList = warehouseRegistry.getPoolInfo();
+        for (int i = 0; i < whList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = whList.get(i);
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"warehouseState\":").append(m.get("warehouseState"))
+              .append("}");
+        }
+        sb.append("],");
+
+        sb.append("\"assembly\":[");
+        List<Map<String, Object>> asList = assemblyRegistry.getPoolInfo();
+        for (int i = 0; i < asList.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> m = asList.get(i);
+            sb.append("{")
+              .append("\"serialNumber\":\"").append(escapeJson((String) m.get("serialNumber"))).append("\",")
+              .append("\"poolStatus\":\"").append(m.get("poolStatus")).append("\",")
+              .append("\"state\":").append(m.get("state")).append(",")
+              .append("\"healthy\":").append(m.get("healthy")).append(",")
+              .append("\"operationId\":").append(m.get("operationId")).append(",")
+              .append("\"lastOperationId\":").append(m.get("lastOperationId"))
+              .append("}");
+        }
+        sb.append("]}");
+
+        return sb.toString();
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     // ── production cycle ────────────────────────────────────────────────────
 
     private void cycleLoop() {
@@ -120,6 +188,8 @@ public class ProductionOrchestrator {
                 runOneCycle();
             } catch (Exception e) {
                 log("err", "Cycle error: " + e.getMessage());
+                failCount++;
+                if (lineId != null) DbLineRepository.recordCycleFailure(lineId);
                 lineStatus    = "alarm";
                 stopRequested = true;
             }
@@ -127,37 +197,81 @@ public class ProductionOrchestrator {
     }
 
     private void runOneCycle() throws Exception {
-        IAgv agv           = agvRegistry.acquire();
+        IAgv       agv       = agvRegistry.acquire();
         IWarehouse warehouse = warehouseRegistry.acquire();
+        IAssembly  assembly  = assemblyRegistry.acquire();
 
-        if (agv == null || warehouse == null) {
-            if (agv != null)       agvRegistry.release(agv);
+        if (agv == null || warehouse == null || assembly == null) {
+            if (agv       != null) agvRegistry.release(agv);
             if (warehouse != null) warehouseRegistry.release(warehouse);
+            if (assembly  != null) assemblyRegistry.release(assembly);
             throw new Exception("No machines available to run a cycle");
         }
 
         try {
+            // 1. Warehouse picks tray to outlet
+            log("info", "Warehouse · picking tray " + TRAY_ID);
+            warehouse.PickItem(TRAY_ID, "");
+            log("ok", "Warehouse · tray ready at outlet");
+
+            // 2. AGV: warehouse → assembly
             step(agv, AgvProgram.MoveToStorageOperation,  "AGV · moving to warehouse");
-            step(agv, AgvProgram.PickWarehouseOperation,   "AGV · picking tray from warehouse");
-            log("ok", "Warehouse · tray picked — item ready");
-
+            step(agv, AgvProgram.PickWarehouseOperation,  "AGV · picking tray from warehouse");
             step(agv, AgvProgram.MoveToAssemblyOperation, "AGV · moving to assembly station");
-            step(agv, AgvProgram.PutAssemblyOperation,     "AGV · placing item at assembly station");
+            step(agv, AgvProgram.PutAssemblyOperation,    "AGV · placing item at assembly station");
 
-            log("info", "Assembly station · operation started");
-            sleep(3000); // placeholder until MQTT assemblystation module is implemented
-            if (stopRequested) return;
-            log("ok", "Assembly station · cycle accepted");
+            // 3. Assembly operation (MQTT)
+            log("info", "Assembly station · starting operation");
+            assembly.setExecuteOperation();
+            waitForAssemblyComplete(assembly);
+            log("ok", "Assembly station · operation complete");
 
-            step(agv, AgvProgram.PickAssemblyOperation,   "AGV · picking assembled item");
-            step(agv, AgvProgram.MoveToStorageOperation,  "AGV · returning to warehouse");
-            step(agv, AgvProgram.PutWarehouseOperation,    "AGV · inserting item into warehouse");
+            // 4. AGV: assembly → warehouse
+            step(agv, AgvProgram.PickAssemblyOperation,  "AGV · picking assembled item");
+            step(agv, AgvProgram.MoveToStorageOperation, "AGV · returning to warehouse");
+            step(agv, AgvProgram.PutWarehouseOperation,  "AGV · inserting item into warehouse");
 
+            // 5. Warehouse stores assembled item
+            log("info", "Warehouse · storing assembled item");
+            warehouse.InsertItem(TRAY_ID, "assembled-part", "");
             log("ok", "Cycle complete — assembled item stored");
+            cycleCount++;
+            if (lineId != null) DbLineRepository.recordCycleComplete(lineId);
+
         } finally {
             agvRegistry.release(agv);
             warehouseRegistry.release(warehouse);
+            assemblyRegistry.release(assembly);
         }
+    }
+
+    private void waitForAssemblyComplete(IAssembly assembly) throws Exception {
+        int prevLastOp = assembly.getLastOperationId();
+
+        // Phase 1: wait up to 30 s for EXECUTING (state=1) to appear
+        long startDeadline = System.currentTimeMillis() + 30_000;
+        while (System.currentTimeMillis() < startDeadline) {
+            if (stopRequested) return;
+            int state    = assembly.getStatus();
+            int lastOpId = assembly.getLastOperationId();
+            if (state == 2) throw new Exception("Assembly station reported ERROR");
+            if (lastOpId != prevLastOp && state == 0) return; // fast-complete before we polled
+            if (state == 1) break;
+            sleep(300);
+        }
+
+        // Phase 2: wait up to 5 minutes for IDLE (state=0) — assembly operations can be slow
+        long completeDeadline = System.currentTimeMillis() + 300_000;
+        while (System.currentTimeMillis() < completeDeadline) {
+            if (stopRequested) return;
+            int state = assembly.getStatus();
+            if (state == 0) return;
+            if (state == 2) throw new Exception("Assembly station reported ERROR");
+            sleep(300);
+        }
+
+        throw new Exception("Assembly station timed out (state=" + assembly.getStatus()
+                + ", lastOp=" + assembly.getLastOperationId() + ")");
     }
 
     private void step(IAgv agv, AgvProgram program, String description) throws Exception {

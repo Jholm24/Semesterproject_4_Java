@@ -67,50 +67,52 @@ services:
       - "8092:80"
 
   # ---------------------------------------------------------------------------
-  # Assembly Station base (ikke startet selv — bruges kun som skabelon)
+  # Assembly Station instances (5)
   # ---------------------------------------------------------------------------
-  st4-assemblyStation-base:
+  st4-assemblyStation-1:
     image: thmork/st4-assemblystation:latest
     environment:
       MQTT_TCP_CONNECTION_HOST: "mqtt"
       MQTT_TCP_CONNECTION_PORT: 1883
+      MACHINE_ID: "1"
     depends_on:
       - mqtt
-    profiles:
-      - base-only #
-
-  # ---------------------------------------------------------------------------
-  # Assembly Station instances (5) — arver fra base
-  # ---------------------------------------------------------------------------
-  st4-assemblyStation-1:
-    extends:
-      service: st4-assemblyStation-base
-    environment:
-      MACHINE_ID: "1"
 
   st4-assemblyStation-2:
-    extends:
-      service: st4-assemblyStation-base
+    image: thmork/st4-assemblystation:latest
     environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
       MACHINE_ID: "2"
+    depends_on:
+      - mqtt
 
   st4-assemblyStation-3:
-    extends:
-      service: st4-assemblyStation-base
+    image: thmork/st4-assemblystation:latest
     environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
       MACHINE_ID: "3"
+    depends_on:
+      - mqtt
 
   st4-assemblyStation-4:
-    extends:
-      service: st4-assemblyStation-base
+    image: thmork/st4-assemblystation:latest
     environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
       MACHINE_ID: "4"
+    depends_on:
+      - mqtt
 
   st4-assemblyStation-5:
-    extends:
-      service: st4-assemblyStation-base
+    image: thmork/st4-assemblystation:latest
     environment:
+      MQTT_TCP_CONNECTION_HOST: "mqtt"
+      MQTT_TCP_CONNECTION_PORT: 1883
       MACHINE_ID: "5"
+    depends_on:
+      - mqtt
 
   # ---------------------------------------------------------------------------
   # Database
@@ -122,7 +124,7 @@ services:
       POSTGRES_PASSWORD: skateboardas
       POSTGRES_DB: skateboardas
     ports:
-      - "5438:5438"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql

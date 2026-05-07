@@ -6,6 +6,9 @@ import dk.sdu.st4.common.config.AppConfig;
 import dk.sdu.st4.common.services.IWarehouse;
 import jakarta.xml.ws.BindingProvider;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 public class WarehouseService implements IWarehouse {
 
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -16,11 +19,18 @@ public class WarehouseService implements IWarehouse {
     }
 
     public WarehouseService(String baseUrl) {
-        IEmulatorService_Service factory = new IEmulatorService_Service();
-        IEmulatorService svc = factory.getBasicHttpBindingIEmulatorService();
-        ((BindingProvider) svc).getRequestContext()
-                .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, baseUrl);
-        this.proxy = svc;
+        try {
+            IEmulatorService_Service factory = new IEmulatorService_Service(
+                    new URL(baseUrl + "?wsdl"),
+                    IEmulatorService_Service.SERVICE
+            );
+            IEmulatorService svc = factory.getBasicHttpBindingIEmulatorService();
+            ((BindingProvider) svc).getRequestContext()
+                    .put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, baseUrl);
+            this.proxy = svc;
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Invalid warehouse URL: " + baseUrl, e);
+        }
     }
 
     @Override

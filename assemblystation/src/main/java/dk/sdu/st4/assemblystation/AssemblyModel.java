@@ -4,11 +4,11 @@ public class AssemblyModel {
     public String broker;
     public int port;
 
-    // IAssembly
-    public int state;
-    public boolean isHealthy;
-    public int operationId;
-    public int lastOperationId;
+    // IAssembly — volatile: written by MQTT callback thread, read by orchestrator thread
+    public volatile int state;
+    public volatile boolean isHealthy = true;
+    public volatile int operationId;
+    public volatile int lastOperationId;
 
     // IConnect
     public String serialNumber;

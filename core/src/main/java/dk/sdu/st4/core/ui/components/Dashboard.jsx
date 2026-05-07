@@ -33,147 +33,162 @@ const MACHINE_TYPES = {
   },
 };
 
-const MACHINE_POOL = {
-  warehouse: [
-    { id: 'wh-1', type: 'warehouse', name: 'Parts Warehouse 01', status: 'online', capacity: 78, serial: 'WH-A7·4821', location: 'Hall A · Bay 1' },
-    { id: 'wh-2', type: 'warehouse', name: 'Parts Warehouse 02', status: 'online', capacity: 92, serial: 'WH-A7·4822', location: 'Hall A · Bay 2' },
-    { id: 'wh-3', type: 'warehouse', name: 'Parts Warehouse 03', status: 'online', capacity: 100, serial: 'WH-A7·4823', location: 'Hall A · Bay 3' },
-    { id: 'wh-4', type: 'warehouse', name: 'Parts Warehouse 04', status: 'online', capacity: 56, serial: 'WH-B2·4824', location: 'Hall B · Bay 1' },
-    { id: 'wh-5', type: 'warehouse', name: 'Parts Warehouse 05', status: 'online', capacity: 100, serial: 'WH-B2·4825', location: 'Hall B · Bay 2' },
-  ],
-  agv: [
-    { id: 'agv-1', type: 'agv', name: 'AGV 01', status: 'active', stateLabel: 'Running', battery: 87, serial: 'AGV-V3·7781', location: 'Track N' },
-    { id: 'agv-2', type: 'agv', name: 'AGV 02', status: 'idle', stateLabel: 'Docked', battery: 100, serial: 'AGV-V3·7782', location: 'Dock 2' },
-    { id: 'agv-3', type: 'agv', name: 'AGV 03', status: 'idle', stateLabel: 'Docked', battery: 94, serial: 'AGV-V3·7783', location: 'Dock 3' },
-    { id: 'agv-4', type: 'agv', name: 'AGV 04', status: 'idle', stateLabel: 'Idle', battery: 72, serial: 'AGV-V3·7784', location: 'Track S' },
-    { id: 'agv-5', type: 'agv', name: 'AGV 05', status: 'idle', stateLabel: 'Idle', battery: 100, serial: 'AGV-V3·7785', location: 'Dock 5' },
-  ],
-  assembly: [
-    { id: 'as-1', type: 'assembly', name: 'Assemble Table 01', status: 'active', stateLabel: 'Operational', activeTasks: 3, completed: 28, serial: 'AS-T1·2201', location: 'Station 1' },
-    { id: 'as-2', type: 'assembly', name: 'Assemble Table 02', status: 'idle', stateLabel: 'Paused', activeTasks: 0, completed: 128, serial: 'AS-T1·2202', location: 'Station 2' },
-    { id: 'as-3', type: 'assembly', name: 'Assemble Table 03', status: 'idle', stateLabel: 'Ready', activeTasks: 0, completed: 0, serial: 'AS-T1·2203', location: 'Station 3' },
-    { id: 'as-4', type: 'assembly', name: 'Assemble Table 04', status: 'idle', stateLabel: 'Ready', activeTasks: 0, completed: 0, serial: 'AS-T2·2204', location: 'Station 4' },
-    { id: 'as-5', type: 'assembly', name: 'Assemble Table 05', status: 'idle', stateLabel: 'Ready', activeTasks: 0, completed: 0, serial: 'AS-T2·2205', location: 'Station 5' },
-  ],
-};
+// ── API response → UI machine object converters ───────────────────────────────
 
-const LINES = [
-  { id: 'line-1', name: 'Line-01 · Skateboard', product: 'Pro Deck 8.0"' },
-  { id: 'line-2', name: 'Line-02 · Desk Lamp', product: 'Studio Lamp v2' },
-  { id: 'line-3', name: 'Line-03 · Pending', product: '—' },
-];
+function toAgvMachine(m) {
+  const stateLabels = { Idle: 'Idle', Executing: 'Running', Charging: 'Charging' };
+  return {
+    id: m.serialNumber,
+    type: 'agv',
+    name: 'AGV ' + m.serialNumber,
+    status: m.poolStatus === 'active' ? 'active' : 'idle',
+    stateLabel: stateLabels[m.agvState] || (m.agvState || '—'),
+    battery: m.battery,
+    serial: m.serialNumber,
+    _program: m.program || null,
+  };
+}
 
-const LINE_DEFAULTS = {
-  'line-1': {
-    status: 'running', cycles: 247, warnings: 2, success: 98.4,
-    machines: ['wh-1', 'agv-1', 'as-1'],
-    log: [
-      { t: '14:02:18', lvl: 'ok', m: 'AGV 01 · MOVE_TO_ASSEMBLY completed' },
-      { t: '14:02:11', lvl: 'info', m: 'Warehouse 01 · picked tray #4821' },
-      { t: '14:01:47', lvl: 'ok', m: 'Assemble Table 01 · cycle 247 accepted' },
-      { t: '13:58:02', lvl: 'warn', m: 'AGV 01 · battery below 90%' },
-    ],
-  },
-  'line-2': {
-    status: 'paused', cycles: 128, warnings: 0, success: 97.1,
-    machines: ['wh-2', 'agv-2', 'agv-3', 'as-2'],
-    log: [
-      { t: '13:40:02', lvl: 'info', m: 'Line-02 · paused by operator M. Jensen' },
-      { t: '13:39:48', lvl: 'ok', m: 'Assemble Table 02 · cycle 128 accepted' },
-      { t: '13:38:12', lvl: 'ok', m: 'AGV 03 · returned to dock' },
-    ],
-  },
-  'line-3': {
-    status: 'standby', cycles: 0, warnings: 0, success: 0,
-    machines: [],
-    log: [
-      { t: '09:00:00', lvl: 'info', m: 'Line-03 · awaiting product assignment' },
-    ],
-  },
-};
+function toWarehouseMachine(m) {
+  const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
+  return {
+    id: m.serialNumber,
+    type: 'warehouse',
+    name: 'Warehouse ' + m.serialNumber,
+    status: m.poolStatus === 'active' ? 'active' : 'idle',
+    stateLabel: stateLabels[m.warehouseState] || '—',
+    warehouseState: m.warehouseState,
+    serial: m.serialNumber,
+  };
+}
+
+function toAssemblyMachine(m) {
+  const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
+  return {
+    id: m.serialNumber,
+    type: 'assembly',
+    name: 'Assembly ' + m.serialNumber,
+    status: m.poolStatus === 'active' ? 'active' : 'idle',
+    stateLabel: stateLabels[m.state] || '—',
+    state: m.state,
+    healthy: m.healthy,
+    operationId: m.operationId,
+    lastOperationId: m.lastOperationId,
+    serial: m.serialNumber,
+  };
+}
+
+// ── Lines fetched from DB via /api/lines ──────────────────────────────────────
+
+// ── Manager dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard({ nav }) {
-  const currentLine = LINES.find(l => l.id === nav.activeLine) || LINES[0];
-
-  const [byLine, setByLine] = useState(() => {
-    const saved = localStorage.getItem('sb_byline_v3');
-    if (saved) { try { return JSON.parse(saved); } catch(e){} }
-    return LINE_DEFAULTS;
-  });
+  // Lines config from DB (id, name, product, status, cycles, success, warnings, machines, operators)
+  const [dbLines, setDbLines] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('sb_byline_v3', JSON.stringify(byLine));
-    window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: byLine }));
-  }, [byLine]);
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/lines');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setDbLines(data);
+        // Merge DB line data into byLine state (machines/operators from DB; preserve local UI state)
+        setByLine(prev => {
+          const next = { ...prev };
+          data.forEach(l => {
+            if (!next[l.id]) {
+              next[l.id] = { status: l.status, cycles: l.cycles, warnings: l.warnings,
+                             success: l.success, machines: l.machines, operators: l.operators, log: [] };
+            } else {
+              next[l.id] = { ...next[l.id], machines: l.machines, operators: l.operators,
+                             cycles: l.cycles, success: l.success, warnings: l.warnings };
+            }
+          });
+          return next;
+        });
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
 
-  const L = byLine[currentLine.id] || LINE_DEFAULTS[currentLine.id];
+  const currentLine = dbLines.find(l => l.id === nav.activeLine) || dbLines[0] || { id: '', name: '', product: '' };
+
+  const [byLine, setByLine] = useState({});
+
+  const L = byLine[currentLine.id] || { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], operators: [], log: [] };
   const { machines: machineIds, status: lineStatus, cycles, warnings, success, log } = L;
 
-  // hydrate machine objects from pool by id
+  // ── Live machine pool from backend ──────────────────────────────────────
+  const [machinePool, setMachinePool] = useState({ agv: [], warehouse: [], assembly: [] });
+
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/machines');
+        if (!res.ok) throw new Error('non-2xx');
+        const data = await res.json();
+        if (!active) return;
+        setMachinePool({
+          agv:       (data.agv       || []).map(toAgvMachine),
+          warehouse: (data.warehouse || []).map(toWarehouseMachine),
+          assembly:  (data.assembly  || []).map(toAssemblyMachine),
+        });
+      } catch { /* backend offline — pool stays empty */ }
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
+
+  // poolIndex: serialNumber → live machine object
   const poolIndex = useMemo(() => {
     const idx = {};
-    Object.values(MACHINE_POOL).flat().forEach(m => { idx[m.id] = m; });
+    Object.values(machinePool).flat().forEach(m => { idx[m.id] = m; });
     return idx;
-  }, []);
-  const liveOverrides = L.overrides || {};
-  const machines = machineIds.map(id => {
-    const base = { ...(poolIndex[id] || {}), ...(liveOverrides[id] || {}) };
-    // Overlay real AGV telemetry when backend is online
-    if (backendOnline && apiStatus?.agv && base.type === 'agv') {
-      const agv = apiStatus.agv;
-      return {
-        ...base,
-        battery:    agv.battery,
-        stateLabel: agv.state === 'Idle' ? 'Idle' : agv.state === 'Executing' ? 'Running' : agv.state,
-        status:     agv.state === 'Idle' ? 'idle' : 'active',
-        _program:   agv.program,
-      };
-    }
-    return base;
-  }).filter(m => m.id);
+  }, [machinePool]);
 
-  // which ids are claimed across ALL lines
+  const machines = (machineIds || []).map(id => poolIndex[id]).filter(Boolean);
+
   const occupiedIds = useMemo(() => {
     const s = new Set();
-    Object.values(byLine).forEach(lineData => {
-      (lineData.machines || []).forEach(id => s.add(id));
-    });
+    dbLines.forEach(l => (l.machines || []).forEach(id => s.add(id)));
     return s;
-  }, [byLine]);
+  }, [dbLines]);
 
   const availableByType = {
-    warehouse: MACHINE_POOL.warehouse.filter(m => !occupiedIds.has(m.id)),
-    agv:       MACHINE_POOL.agv.filter(m => !occupiedIds.has(m.id)),
-    assembly:  MACHINE_POOL.assembly.filter(m => !occupiedIds.has(m.id)),
+    warehouse: (machinePool.warehouse || []).filter(m => !occupiedIds.has(m.id)),
+    agv:       (machinePool.agv       || []).filter(m => !occupiedIds.has(m.id)),
+    assembly:  (machinePool.assembly  || []).filter(m => !occupiedIds.has(m.id)),
   };
 
-  const patchLine = (patch) => setByLine(b => ({ ...b, [currentLine.id]: { ...b[currentLine.id], ...patch } }));
+  const patchLine = (patch) => setByLine(b => {
+    const base = b[currentLine.id] || { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], operators: [], log: [] };
+    const updated = { ...b, [currentLine.id]: { ...base, ...patch } };
+    // Persist status/cycles/success/warnings changes to DB
+    if (patch.status !== undefined || patch.cycles !== undefined ||
+        patch.success !== undefined || patch.warnings !== undefined) {
+      const L2 = updated[currentLine.id];
+      fetch(API_BASE + '/api/lines', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentLine.id, status: L2.status,
+          cycles: L2.cycles || 0, success: L2.success || 0, warnings: L2.warnings || 0 }),
+      }).catch(() => {});
+    }
+    window.dispatchEvent(new CustomEvent('sb-byline-change', { detail: updated }));
+    return updated;
+  });
   const setMachines = (next) => patchLine({ machines: typeof next === 'function' ? next(machineIds) : next });
   const setLineStatus = (s) => patchLine({ status: s });
   const setLog = (next) => patchLine({ log: typeof next === 'function' ? next(L.log) : next });
 
-  // Simulate live updates while running
-  useEffect(() => {
-    if (lineStatus !== 'running') return;
-    const id = setInterval(() => {
-      setByLine(b => {
-        const cur = b[currentLine.id]; if (!cur) return b;
-        const ov = { ...(cur.overrides || {}) };
-        (cur.machines || []).forEach(mid => {
-          const base = poolIndex[mid]; if (!base) return;
-          const existing = ov[mid] || {};
-          if (base.type === 'agv') ov[mid] = { ...existing, battery: Math.max(12, (existing.battery ?? base.battery ?? 87) - 0.3) };
-          if (base.type === 'warehouse') ov[mid] = { ...existing, capacity: Math.max(5, (existing.capacity ?? base.capacity ?? 78) - 0.5) };
-          if (base.type === 'assembly') ov[mid] = { ...existing, completed: (existing.completed ?? base.completed ?? 0) + 1 };
-        });
-        return { ...b, [currentLine.id]: { ...cur, cycles: cur.cycles + 1, overrides: ov } };
-      });
-    }, 1400);
-    return () => clearInterval(id);
-  }, [lineStatus, currentLine.id, poolIndex]);
-
-  // ── Live backend polling ────────────────────────────────────────────────
-  const [apiStatus, setApiStatus] = useState(null);
+  // ── Live backend polling: line status + events ──────────────────────────
   const [backendOnline, setBackendOnline] = useState(false);
 
   useEffect(() => {
@@ -184,9 +199,7 @@ function ManagerDashboard({ nav }) {
         if (!res.ok) throw new Error('non-2xx');
         const data = await res.json();
         if (!active) return;
-        setApiStatus(data);
         setBackendOnline(true);
-        // Sync line status from backend when it diverges
         if (data.lineStatus && data.lineStatus !== lineStatus) {
           patchLine({ status: data.lineStatus });
         }
@@ -197,7 +210,6 @@ function ManagerDashboard({ nav }) {
     return () => { active = false; clearInterval(id); };
   }, [lineStatus, currentLine.id]);
 
-  // Poll event log from backend
   useEffect(() => {
     let active = true;
     const poll = async () => {
@@ -206,7 +218,7 @@ function ManagerDashboard({ nav }) {
         if (!res.ok) throw new Error('non-2xx');
         const evts = await res.json();
         if (active && evts.length > 0) patchLine({ log: evts.slice(0, 10) });
-      } catch { /* backend offline — keep local log */ }
+      } catch { }
     };
     const id = setInterval(poll, 2000);
     return () => { active = false; clearInterval(id); };
@@ -222,19 +234,17 @@ function ManagerDashboard({ nav }) {
   const doControl = async (cmd) => {
     const now = new Date();
     const t = now.toTimeString().slice(0,8);
-    // Optimistic local update so the UI feels instant
     if (cmd === 'start') { setLineStatus('running'); setLog(l => [{t, lvl:'ok',   m: 'Line started — production queue initiated'}, ...l].slice(0,12)); }
     if (cmd === 'pause') { setLineStatus('paused');  setLog(l => [{t, lvl:'info', m: 'Line paused'}, ...l].slice(0,12)); }
     if (cmd === 'stop')  { setLineStatus('stopped'); setLog(l => [{t, lvl:'warn', m: 'Line stopped — parked in safe state'}, ...l].slice(0,12)); }
     if (cmd === 'abort') { patchLine({ status: 'alarm', warnings: (L.warnings||0)+1, log: [{t, lvl:'err', m: 'ABORT — emergency stop engaged'}, ...L.log].slice(0,12) }); }
-    // Send command to backend (fire-and-forget; backend is authoritative)
     try {
       await fetch(API_BASE + '/api/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: cmd }),
       });
-    } catch { /* backend offline — local state already updated above */ }
+    } catch { }
   };
 
   const grouped = { warehouse: [], agv: [], assembly: [] };
@@ -246,8 +256,8 @@ function ManagerDashboard({ nav }) {
     <main className="dash">
       <div className="dash-main">
         <StatsBar cycles={cycles} success={success} warnings={warnings} lineStatus={lineStatus} currentLine={currentLine} backendOnline={backendOnline} />
-        <ComponentManager grouped={grouped} available={availableByType} onAdd={addMachineById} />
-        <MachineGrid grouped={grouped} removeMachine={removeMachine} lineStatus={lineStatus} onOpen={(m) => setOpenMachine(m)} backendOnline={backendOnline} />
+        <ComponentManager grouped={grouped} available={availableByType} onAdd={addMachineById} machinePool={machinePool} />
+        <MachineGrid grouped={grouped} removeMachine={removeMachine} lineStatus={lineStatus} onOpen={(m) => setOpenMachine(m)} />
         <EventLog log={log} />
       </div>
       <aside className="dash-aside">
@@ -260,7 +270,15 @@ function ManagerDashboard({ nav }) {
           Task Builder
         </button>
       </aside>
-      {liveOpenMachine && <MachineDetail machine={liveOpenMachine} lineStatus={lineStatus} onClose={() => setOpenMachine(null)} onRemove={() => { removeMachine(liveOpenMachine.id); setOpenMachine(null); }} />}
+      {liveOpenMachine && (
+        <MachineDetail
+          machine={liveOpenMachine}
+          lineStatus={lineStatus}
+          onClose={() => setOpenMachine(null)}
+          onRemove={() => { removeMachine(liveOpenMachine.id); setOpenMachine(null); }}
+          activity={log.slice(0, 4)}
+        />
+      )}
     </main>
   );
 }
@@ -289,7 +307,7 @@ function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendO
       </div>
       <div className="stats-grid">
         <Stat icon="pulse" label="Total Cycles" value={cycles} />
-        <Stat icon="check" label="Success Rate" value={success.toFixed(1)+'%'} sub="last 24h" tone="ok"/>
+        <Stat icon="check" label="Success Rate" value={(success || 0).toFixed(1)+'%'} sub="last 24h" tone="ok"/>
         <Stat icon="alert" label="Warnings" value={warnings} tone={warnings>0?'warn':'ok'}/>
         <Stat icon="clock" label="Avg. Cycle Time" value="42.6s" sub="target: <45s" tone="ok"/>
       </div>
@@ -318,7 +336,7 @@ function Stat({ icon, label, value, sub, tone }) {
   );
 }
 
-function ComponentManager({ grouped, available, onAdd }) {
+function ComponentManager({ grouped, available, onAdd, machinePool }) {
   const [openType, setOpenType] = React.useState(null);
   const rootRef = React.useRef(null);
   React.useEffect(() => {
@@ -337,36 +355,37 @@ function ComponentManager({ grouped, available, onAdd }) {
           <div className="sec-kicker mono">02 · COMPONENTS</div>
           <h2 className="sec-title">Component Manager</h2>
         </div>
-        <div className="kompo-hint mono">Pool: 5 of each type · select an available unit</div>
+        <div className="kompo-hint mono">Select an available unit from the pool</div>
       </div>
       <div className="kompo-row">
         {Object.values(MACHINE_TYPES).map(t => {
           const avail = available[t.id] || [];
+          const total = (machinePool[t.id] || []).length;
           const isOpen = openType === t.id;
           return (
             <div key={t.id} className={'kompo-card' + (isOpen ? ' kompo-open' : '')} style={{'--c': t.accent, '--cs': t.accentSoft}}>
               <div className="kompo-ic">{t.icon}</div>
               <div className="kompo-meta">
                 <div className="kompo-label">{t.label}</div>
-                <div className="kompo-sub mono">{grouped[t.id].length} on line · {avail.length}/5 available</div>
+                <div className="kompo-sub mono">{grouped[t.id].length} on line · {avail.length}/{total} available</div>
               </div>
               <button
                 className="kompo-add"
                 onClick={() => setOpenType(o => o === t.id ? null : t.id)}
                 disabled={avail.length === 0}
-                title={avail.length === 0 ? 'All units occupied by other lines' : 'Add available unit'}
+                title={total === 0 ? 'No machines in pool' : avail.length === 0 ? 'All units occupied by other lines' : 'Add available unit'}
               >
-                <span>{avail.length === 0 ? '—' : '+'}</span> {avail.length === 0 ? 'Full' : 'Add'}
+                <span>{avail.length > 0 ? '+' : '—'}</span> {total > 0 && avail.length === 0 ? 'Full' : avail.length > 0 ? 'Add' : '—'}
                 <svg className="kompo-caret" width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 3 L4.5 6 L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
               {isOpen && (
                 <div className="kompo-pop" role="menu">
                   <div className="kompo-pop-head">
                     <span className="mono kompo-pop-k">AVAILABLE {t.label.toUpperCase()} UNITS</span>
-                    <span className="mono kompo-pop-count">{avail.length} / 5</span>
+                    <span className="mono kompo-pop-count">{avail.length} / {total}</span>
                   </div>
                   {avail.length === 0 ? (
-                    <div className="kompo-pop-empty mono">All 5 units are currently occupied by other production lines.</div>
+                    <div className="kompo-pop-empty mono">{total === 0 ? 'No machines loaded from pool.' : 'All units are currently occupied by other production lines.'}</div>
                   ) : (
                     <ul className="kompo-pop-list">
                       {avail.map(u => (
@@ -375,7 +394,7 @@ function ComponentManager({ grouped, available, onAdd }) {
                             <span className="kompo-pop-ic" style={{background: t.accentSoft, color: t.accent}}>{t.icon}</span>
                             <span className="kompo-pop-body">
                               <span className="kompo-pop-name">{u.name}</span>
-                              <span className="mono kompo-pop-meta">{u.serial} · {u.location}</span>
+                              <span className="mono kompo-pop-meta">{u.serial} · {t.protocol}</span>
                             </span>
                             <span className="kompo-pop-add mono">+ Add</span>
                           </button>
@@ -420,7 +439,7 @@ function MachineGrid({ grouped, removeMachine, lineStatus, onOpen }) {
 
 function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
   const t = MACHINE_TYPES[machine.type];
-  const statusTone = machine.status === 'online' || machine.status === 'active' ? 'ok' : 'idle';
+  const statusTone = machine.status === 'active' ? 'ok' : 'idle';
   const handleCardClick = (e) => {
     if (e.target.closest('.mcard-x')) return;
     onOpen && onOpen();
@@ -431,20 +450,19 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
         <span className="mcard-ic">{t.icon}</span>
         <span className="mcard-name">{machine.name}</span>
         <span className={`mcard-badge mcard-badge-${statusTone}`}>{t.badge}</span>
-        <span className={`mcard-status mono mcard-status-${statusTone}`}>{machine.status === 'online' ? 'Online' : machine.status === 'active' ? 'Active' : 'Idle'}</span>
+        <span className={`mcard-status mono mcard-status-${statusTone}`}>{machine.status === 'active' ? 'Active' : 'Idle'}</span>
         <button className="mcard-x" onClick={onRemove} title="Remove">×</button>
       </header>
 
       {machine.type === 'warehouse' && (
         <div className="mcard-body">
           <div className="mcard-row">
-            <span className="mcard-k">Capacity</span>
-            <span className="mcard-v mono">{machine.capacity.toFixed(0)}%</span>
+            <span className="mcard-k">State</span>
+            <span className="mcard-v mono">{machine.stateLabel}</span>
           </div>
-          <div className="mcard-bar"><div className="mcard-bar-fill" style={{width: machine.capacity+'%'}}/></div>
           <div className="mcard-meta mono">
-            <span>TRAYS · 14/18</span>
-            <span>IN · 42 · OUT · 37</span>
+            <span>SOAP · :8081</span>
+            <span>{machine.serial}</span>
           </div>
         </div>
       )}
@@ -457,12 +475,14 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
           </div>
           <div className="mcard-row">
             <span className="mcard-k">Battery</span>
-            <span className="mcard-v mono">{Math.round(machine.battery)}%</span>
+            <span className="mcard-v mono">{machine.battery !== null && machine.battery !== undefined ? Math.round(machine.battery) + '%' : '—'}</span>
           </div>
-          <div className="mcard-bar"><div className="mcard-bar-fill" style={{width: machine.battery+'%'}}/></div>
+          {machine.battery !== null && machine.battery !== undefined && (
+            <div className="mcard-bar"><div className="mcard-bar-fill" style={{width: machine.battery+'%'}}/></div>
+          )}
           <div className="mcard-meta mono">
-            <span>PROG · {machine._program || 'MoveToAssembly'}</span>
-            <span>{machine._program ? 'LIVE' : 'POS · B·02'}</span>
+            <span>PROG · {machine._program || '—'}</span>
+            <span>{machine._program ? 'LIVE' : machine.serial}</span>
           </div>
         </div>
       )}
@@ -474,12 +494,12 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
             <span className="mcard-v mono">{machine.stateLabel}</span>
           </div>
           <div className="mcard-row">
-            <span className="mcard-k">Active Tasks</span>
-            <span className="mcard-v mono">{machine.activeTasks}</span>
+            <span className="mcard-k">Health</span>
+            <span className="mcard-v mono">{machine.healthy === true ? 'Healthy' : machine.healthy === false ? 'Unhealthy' : '—'}</span>
           </div>
           <div className="mcard-row">
-            <span className="mcard-k">Completed</span>
-            <span className="mcard-v mono">{machine.completed}</span>
+            <span className="mcard-k">Current Op</span>
+            <span className="mcard-v mono">{machine.operationId >= 0 ? machine.operationId : '—'}</span>
           </div>
           <div className="mcard-meta mono">
             <span>TOPIC · emulator/status</span>
@@ -502,7 +522,7 @@ function EventLog({ log }) {
         <div className="mono evlog-sub">latest 10 events</div>
       </header>
       <ul className="evlog-list">
-        {log.map((e, i) => (
+        {(log || []).map((e, i) => (
           <li key={i} className={`ev ev-${e.lvl}`}>
             <span className="ev-time mono">{e.t}</span>
             <span className="ev-dot"/>
@@ -517,7 +537,6 @@ function EventLog({ log }) {
 function ControlBoard({ lineStatus, doControl }) {
   const btns = [
     { k:'start', label:'Start', cls:'cb-start', ic: <path d="M5 3 L13 8 L5 13 Z" fill="currentColor"/> },
-    { k:'pause', label:'Pause', cls:'cb-pause', ic: <><rect x="4" y="3" width="3" height="10" fill="currentColor"/><rect x="9" y="3" width="3" height="10" fill="currentColor"/></> },
     { k:'stop', label:'Stop', cls:'cb-stop', ic: <rect x="3" y="3" width="10" height="10" fill="currentColor"/> },
     { k:'abort', label:'Abort', cls:'cb-alarm', ic: <path d="M8 2 L14 13 H2 Z M8 6 V10 M8 12 V12.5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinejoin="round"/> },
   ];
@@ -551,7 +570,7 @@ function ControlBoard({ lineStatus, doControl }) {
 
 Object.assign(window, { ManagerDashboard, StatsBar, ComponentManager, MachineGrid, MachineCard, MachineDetail, EventLog, ControlBoard, MACHINE_TYPES });
 
-function MachineDetail({ machine, lineStatus, onClose, onRemove }) {
+function MachineDetail({ machine, lineStatus, onClose, onRemove, activity }) {
   const t = MACHINE_TYPES[machine.type];
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -561,40 +580,32 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove }) {
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, [onClose]);
 
-  const statusLabel = machine.status === 'online' ? 'Online' : machine.status === 'active' ? 'Active' : 'Idle';
-  const statusTone  = machine.status === 'online' || machine.status === 'active' ? 'ok' : 'idle';
+  const statusLabel = machine.status === 'active' ? 'Active' : 'Idle';
+  const statusTone  = machine.status === 'active' ? 'ok' : 'idle';
 
   const telemetry = machine.type === 'warehouse' ? [
-    { k: 'CAPACITY',    v: Math.round(machine.capacity) + '%' },
-    { k: 'TRAYS',       v: '14 / 18' },
-    { k: 'IN / OUT',    v: '42 / 37' },
-    { k: 'TEMP',        v: '21.3 °C' },
-    { k: 'UPTIME',      v: '14d 02h' },
-    { k: 'PROTOCOL',    v: 'SOAP · :8081' },
+    { k: 'STATE',    v: machine.stateLabel },
+    { k: 'SERIAL',   v: machine.serial },
+    { k: 'POOL',     v: machine.status === 'active' ? 'In use' : 'Available' },
+    { k: 'PROTOCOL', v: 'SOAP' },
   ] : machine.type === 'agv' ? [
-    { k: 'STATE',       v: machine.stateLabel },
-    { k: 'BATTERY',     v: Math.round(machine.battery) + '%' },
-    { k: 'PROGRAM',     v: machine._program || 'MoveToAssembly' },
-    { k: 'POSITION',    v: 'B · 02' },
-    { k: 'SPEED',       v: '0.8 m/s' },
-    { k: 'PROTOCOL',    v: 'REST · :8082' },
+    { k: 'STATE',    v: machine.stateLabel },
+    { k: 'BATTERY',  v: machine.battery !== null && machine.battery !== undefined ? Math.round(machine.battery) + '%' : '—' },
+    { k: 'PROGRAM',  v: machine._program || '—' },
+    { k: 'SERIAL',   v: machine.serial },
+    { k: 'POOL',     v: machine.status === 'active' ? 'In use' : 'Available' },
+    { k: 'PROTOCOL', v: 'REST' },
   ] : [
-    { k: 'STATE',       v: machine.stateLabel },
-    { k: 'ACTIVE',      v: machine.activeTasks },
-    { k: 'COMPLETED',   v: machine.completed },
-    { k: 'CURRENT OP',  v: 'START_OPERATION' },
-    { k: 'CYCLE TIME',  v: '42.6 s' },
-    { k: 'PROTOCOL',    v: 'MQTT · :1883' },
+    { k: 'STATE',      v: machine.stateLabel },
+    { k: 'HEALTH',     v: machine.healthy === true ? 'Healthy' : machine.healthy === false ? 'Unhealthy' : '—' },
+    { k: 'CURRENT OP', v: machine.operationId >= 0 ? machine.operationId : '—' },
+    { k: 'LAST OP',    v: machine.lastOperationId >= 0 ? machine.lastOperationId : '—' },
+    { k: 'SERIAL',     v: machine.serial },
+    { k: 'POOL',       v: machine.status === 'active' ? 'In use' : 'Available' },
+    { k: 'PROTOCOL',   v: 'MQTT' },
   ];
 
-  const activity = [
-    { t: '14:02:18', m: machine.type === 'agv' ? 'MOVE_TO_ASSEMBLY completed' : machine.type === 'warehouse' ? 'Picked tray #4821' : 'Cycle 247 accepted', lvl: 'ok' },
-    { t: '14:01:47', m: 'Health check responded · 120ms', lvl: 'info' },
-    { t: '14:00:12', m: machine.type === 'agv' ? 'Battery dropped below 90%' : machine.type === 'warehouse' ? 'Outlet free · idle 4s' : 'Operation started', lvl: machine.type === 'agv' ? 'warn' : 'ok' },
-    { t: '13:58:02', m: 'Status update published', lvl: 'info' },
-  ];
-
-  const accent = t.accent;
+  const accent     = t.accent;
   const accentSoft = t.accentSoft;
 
   return (
@@ -633,13 +644,7 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove }) {
                 </div>
               ))}
             </div>
-            {machine.type === 'warehouse' && (
-              <div className="mdetail-bar-wrap">
-                <div className="mdetail-bar"><div className="mdetail-bar-fill" style={{width: machine.capacity + '%', background: accent}}/></div>
-                <div className="mono mdetail-bar-k">Capacity fill</div>
-              </div>
-            )}
-            {machine.type === 'agv' && (
+            {machine.type === 'agv' && machine.battery !== null && machine.battery !== undefined && (
               <div className="mdetail-bar-wrap">
                 <div className="mdetail-bar"><div className="mdetail-bar-fill" style={{width: machine.battery + '%', background: accent}}/></div>
                 <div className="mono mdetail-bar-k">Battery level</div>
@@ -649,15 +654,19 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove }) {
 
           <section className="mdetail-sec">
             <div className="sec-kicker mono">RECENT ACTIVITY</div>
-            <ul className="mdetail-log">
-              {activity.map((e, i) => (
-                <li key={i} className={`mdetail-log-row mdetail-log-${e.lvl}`}>
-                  <span className="mono mdetail-log-t">{e.t}</span>
-                  <span className="mdetail-log-dot"/>
-                  <span className="mdetail-log-m">{e.m}</span>
-                </li>
-              ))}
-            </ul>
+            {activity && activity.length > 0 ? (
+              <ul className="mdetail-log">
+                {activity.map((e, i) => (
+                  <li key={i} className={`mdetail-log-row mdetail-log-${e.lvl}`}>
+                    <span className="mono mdetail-log-t">{e.t}</span>
+                    <span className="mdetail-log-dot"/>
+                    <span className="mdetail-log-m">{e.m}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mono" style={{fontSize:11, opacity:0.5, padding:'8px 0'}}>No recent activity</div>
+            )}
           </section>
 
           <section className="mdetail-sec">
