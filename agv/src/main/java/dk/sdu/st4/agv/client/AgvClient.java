@@ -13,8 +13,6 @@ import java.net.http.HttpResponse;
  *
  * <p>Both operations (load and execute) use HTTP PUT to the same endpoint.
  * Status retrieval uses HTTP GET.
- *
- * <p>Endpoint: {@code http://localhost:8082/v1/status/}
  */
 public class AgvClient {
 
