@@ -3,6 +3,7 @@ package dk.sdu.st4.app;
 import dk.sdu.st4.app.Registries.AgvRegistry;
 import dk.sdu.st4.app.Registries.AssemblyRegistry;
 import dk.sdu.st4.app.Registries.WarehouseRegistry;
+import dk.sdu.st4.common.db.DbLineRepository;
 import dk.sdu.st4.common.data.AgvStatus;
 import dk.sdu.st4.common.data.enums.AgvProgram;
 import dk.sdu.st4.common.data.enums.AgvState;
@@ -37,11 +38,14 @@ public class ProductionOrchestrator {
     private final AgvRegistry      agvRegistry;
     private final WarehouseRegistry warehouseRegistry;
     private final AssemblyRegistry  assemblyRegistry;
+    private final String            lineId;
 
     // ── volatile state ──────────────────────────────────────────────────────
     private volatile String  lineStatus     = "standby";
     private volatile boolean stopRequested  = false;
     private volatile boolean pauseRequested = false;
+    private volatile int     cycleCount     = 0;
+    private volatile int     failCount      = 0;
 
     // cached AGV snapshot, updated each poll tick
     private volatile AgvStatus lastAgvStatus = new AgvStatus(0, "", AgvState.Idle, "");
@@ -51,10 +55,12 @@ public class ProductionOrchestrator {
 
     public ProductionOrchestrator(AgvRegistry agvRegistry,
                                   WarehouseRegistry warehouseRegistry,
-                                  AssemblyRegistry assemblyRegistry) {
+                                  AssemblyRegistry assemblyRegistry,
+                                  String lineId) {
         this.agvRegistry       = agvRegistry;
         this.warehouseRegistry = warehouseRegistry;
         this.assemblyRegistry  = assemblyRegistry;
+        this.lineId            = lineId;
     }
 
     // ── public control API ──────────────────────────────────────────────────
@@ -92,6 +98,8 @@ public class ProductionOrchestrator {
     // ── status accessors ────────────────────────────────────────────────────
 
     public String getLineStatus() { return lineStatus; }
+    public int    getCycleCount() { return cycleCount; }
+    public int    getFailCount()  { return failCount;  }
 
     public String agvJson() {
         AgvStatus s = lastAgvStatus;
@@ -180,6 +188,8 @@ public class ProductionOrchestrator {
                 runOneCycle();
             } catch (Exception e) {
                 log("err", "Cycle error: " + e.getMessage());
+                failCount++;
+                if (lineId != null) DbLineRepository.recordCycleFailure(lineId);
                 lineStatus    = "alarm";
                 stopRequested = true;
             }
@@ -225,6 +235,8 @@ public class ProductionOrchestrator {
             log("info", "Warehouse · storing assembled item");
             warehouse.InsertItem(TRAY_ID, "assembled-part", "");
             log("ok", "Cycle complete — assembled item stored");
+            cycleCount++;
+            if (lineId != null) DbLineRepository.recordCycleComplete(lineId);
 
         } finally {
             agvRegistry.release(agv);

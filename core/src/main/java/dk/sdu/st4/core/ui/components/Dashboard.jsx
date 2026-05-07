@@ -103,7 +103,8 @@ function ManagerDashboard({ nav }) {
               next[l.id] = { status: l.status, cycles: l.cycles, warnings: l.warnings,
                              success: l.success, machines: l.machines, operators: l.operators, log: [] };
             } else {
-              next[l.id] = { ...next[l.id], machines: l.machines, operators: l.operators };
+              next[l.id] = { ...next[l.id], machines: l.machines, operators: l.operators,
+                             cycles: l.cycles, success: l.success, warnings: l.warnings };
             }
           });
           return next;
@@ -152,7 +153,7 @@ function ManagerDashboard({ nav }) {
     return idx;
   }, [machinePool]);
 
-  const machines = machineIds.map(id => poolIndex[id]).filter(Boolean);
+  const machines = (machineIds || []).map(id => poolIndex[id]).filter(Boolean);
 
   const occupiedIds = useMemo(() => {
     const s = new Set();
@@ -167,7 +168,8 @@ function ManagerDashboard({ nav }) {
   };
 
   const patchLine = (patch) => setByLine(b => {
-    const updated = { ...b, [currentLine.id]: { ...b[currentLine.id], ...patch } };
+    const base = b[currentLine.id] || { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], operators: [], log: [] };
+    const updated = { ...b, [currentLine.id]: { ...base, ...patch } };
     // Persist status/cycles/success/warnings changes to DB
     if (patch.status !== undefined || patch.cycles !== undefined ||
         patch.success !== undefined || patch.warnings !== undefined) {
@@ -305,7 +307,7 @@ function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendO
       </div>
       <div className="stats-grid">
         <Stat icon="pulse" label="Total Cycles" value={cycles} />
-        <Stat icon="check" label="Success Rate" value={success.toFixed(1)+'%'} sub="last 24h" tone="ok"/>
+        <Stat icon="check" label="Success Rate" value={(success || 0).toFixed(1)+'%'} sub="last 24h" tone="ok"/>
         <Stat icon="alert" label="Warnings" value={warnings} tone={warnings>0?'warn':'ok'}/>
         <Stat icon="clock" label="Avg. Cycle Time" value="42.6s" sub="target: <45s" tone="ok"/>
       </div>
@@ -520,7 +522,7 @@ function EventLog({ log }) {
         <div className="mono evlog-sub">latest 10 events</div>
       </header>
       <ul className="evlog-list">
-        {log.map((e, i) => (
+        {(log || []).map((e, i) => (
           <li key={i} className={`ev ev-${e.lvl}`}>
             <span className="ev-time mono">{e.t}</span>
             <span className="ev-dot"/>
@@ -535,7 +537,6 @@ function EventLog({ log }) {
 function ControlBoard({ lineStatus, doControl }) {
   const btns = [
     { k:'start', label:'Start', cls:'cb-start', ic: <path d="M5 3 L13 8 L5 13 Z" fill="currentColor"/> },
-    { k:'pause', label:'Pause', cls:'cb-pause', ic: <><rect x="4" y="3" width="3" height="10" fill="currentColor"/><rect x="9" y="3" width="3" height="10" fill="currentColor"/></> },
     { k:'stop', label:'Stop', cls:'cb-stop', ic: <rect x="3" y="3" width="10" height="10" fill="currentColor"/> },
     { k:'abort', label:'Abort', cls:'cb-alarm', ic: <path d="M8 2 L14 13 H2 Z M8 6 V10 M8 12 V12.5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinejoin="round"/> },
   ];

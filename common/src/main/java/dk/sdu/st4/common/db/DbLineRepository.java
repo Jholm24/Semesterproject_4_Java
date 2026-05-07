@@ -78,6 +78,32 @@ public class DbLineRepository {
         }
     }
 
+    public static void recordCycleComplete(String id) {
+        try (PreparedStatement ps = conn().prepareStatement(
+                "UPDATE production_lines " +
+                "SET cycles = cycles + 1, " +
+                "    success_rate = 100.0 * (cycles + 1) / NULLIF((cycles + 1) + warnings, 0) " +
+                "WHERE id = ?")) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to record cycle complete for line " + id, e);
+        }
+    }
+
+    public static void recordCycleFailure(String id) {
+        try (PreparedStatement ps = conn().prepareStatement(
+                "UPDATE production_lines " +
+                "SET warnings = warnings + 1, " +
+                "    success_rate = 100.0 * cycles / NULLIF(cycles + (warnings + 1), 0) " +
+                "WHERE id = ?")) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to record cycle failure for line " + id, e);
+        }
+    }
+
     public static void deleteLine(String id) {
         try (PreparedStatement ps = conn().prepareStatement(
                 "DELETE FROM production_lines WHERE id = ?")) {

@@ -75,14 +75,11 @@ CREATE TABLE IF NOT EXISTS line_employees (
 -- ── Seed data ────────────────────────────────────────────────────────────────
 
 INSERT INTO production_lines (id, name, product, status, cycles, success_rate, warnings) VALUES
-('line-1', 'Line-01 · Skateboard', 'Pro Deck 8.0"',  'running', 247, 98.4, 0),
-('line-2', 'Line-02 · Desk Lamp',  'Studio Lamp v2', 'paused',  128, 97.1, 0),
-('line-3', 'Line-03 · Pending',    '—',              'standby',   0,  0.0, 0)
+('line-1', 'Line-01 · Skateboard',    'Neo X5',              'standby',   0,  0.0, 0)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO line_machines (line_id, serial_no) VALUES
 ('line-1', 'WH-P13752'), ('line-1', 'AG-294751'), ('line-1', 'AS-739281'),
-('line-2', 'WH-P47281'), ('line-2', 'AG-183640'), ('line-2', 'AG-572913'), ('line-2', 'AS-516403')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO employees (id, name, username, role, pic, since, password_plain) VALUES

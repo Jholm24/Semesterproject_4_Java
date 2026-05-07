@@ -41,9 +41,6 @@ public class AssemblyController implements IConnect, IAssembly {
                         model.state = jsonStatus.get("State").getAsInt();
                         model.lastOperationId = jsonStatus.get("LastOperation").getAsInt();
                         model.operationId = jsonStatus.get("CurrentOperation").getAsInt();
-                        System.out.println("State: " + model.state);
-                        System.out.println("CurrentOperation: " + model.operationId);
-                        System.out.println("LastOperation: " + model.lastOperationId);
                         break;
                     case "emulator/checkhealth":
                         JsonObject jsonHealth = JsonParser.parseString(payload).getAsJsonObject();

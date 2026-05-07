@@ -59,8 +59,9 @@ public class ApiServer {
         if (!"GET".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
 
         String body = String.format(
-            "{\"agv\":%s,\"lineStatus\":\"%s\"}",
-            orchestrator.agvJson(), orchestrator.getLineStatus()
+            "{\"agv\":%s,\"lineStatus\":\"%s\",\"cycles\":%d,\"fails\":%d}",
+            orchestrator.agvJson(), orchestrator.getLineStatus(),
+            orchestrator.getCycleCount(), orchestrator.getFailCount()
         );
         sendJson(ex, 200, body);
     }
