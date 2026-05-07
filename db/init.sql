@@ -52,10 +52,6 @@ INSERT INTO machines (serial_no, type, variant, base_url) VALUES
 ('WH-A29047', 'WAREHOUSE',        'accepted',  'http://localhost:8090/Service.asmx'),
 ('WH-D81234', 'WAREHOUSE',        'defect',    'http://localhost:8091/Service.asmx'),
 ('WH-D02765', 'WAREHOUSE',        'defect',    'http://localhost:8092/Service.asmx'),
-('AS-739281', 'ASSEMBLY_STATION', '',          NULL),
-('AS-516403', 'ASSEMBLY_STATION', '',          NULL),
-('AS-284971', 'ASSEMBLY_STATION', '',          NULL),
-('AS-653820', 'ASSEMBLY_STATION', '',          NULL),
 ('AS-917346', 'ASSEMBLY_STATION', '',          NULL);
 
 -- ── Join tables (depend on both machines and production_lines) ───────────────
