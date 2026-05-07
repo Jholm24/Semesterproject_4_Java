@@ -18,5 +18,4 @@ public interface IConnect {
     CompletableFuture<Void> connectMachine(String serialNumber);
     void disconnectMachine(String serialNumber);
     boolean isConnected(String serialNumber);
-    // Vi er fkn igang
 }
