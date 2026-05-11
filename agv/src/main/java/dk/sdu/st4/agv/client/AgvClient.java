@@ -1,76 +1,61 @@
 package dk.sdu.st4.agv.client;
 
-import dk.sdu.st4.common.util.JsonUtil;
+import dk.sdu.st4.common.config.AppConfig;
 import dk.sdu.st4.common.data.AgvStatus;
+import dk.sdu.st4.common.data.enums.AgvProgram;
+import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.util.JsonUtil;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-/**
- * Low-level HTTP client for the AGV REST API.
- *
- * <p>Both operations (load and execute) use HTTP PUT to the same endpoint.
- * Status retrieval uses HTTP GET.
- */
-public class AgvClient {
+public class AgvClient implements IAgv {
 
     private final HttpClient httpClient;
-    private final URI endpoint;
+    private final URI        endpoint;
+
+    public AgvClient() {
+        this(AppConfig.AGV_BASE_URL);
+    }
 
     public AgvClient(String baseUrl) {
         this.httpClient = HttpClient.newHttpClient();
-        this.endpoint = URI.create(baseUrl);
+        this.endpoint   = URI.create(baseUrl);
     }
 
-    /**
-     * Sends an HTTP GET to the AGV endpoint and returns the parsed {@link AgvStatus}.
-     *
-     * @return current AGV status
-     * @throws Exception if the request fails or the response cannot be parsed
-     */
+    @Override
+    public void loadProgram(AgvProgram program) throws Exception {
+        var body = String.format("{\"Program name\": \"%s\", \"State\": %d}",
+                program.getProgram(), AppConfig.AGV_LOAD_STATE);
+        sendPut(body);
+    }
+
+    @Override
+    public void executeProgram() throws Exception {
+        var body = String.format("{\"State\": %d}", AppConfig.AGV_EXECUTE_STATE);
+        sendPut(body);
+    }
+
+    @Override
     public AgvStatus getStatus() throws Exception {
-        // 1. Build the GET request
-        HttpRequest request = HttpRequest.newBuilder(endpoint)
-                .GET()
-                .build();
-
-        // 2. Send the request
+        HttpRequest request = HttpRequest.newBuilder(endpoint).GET().build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        // 3. Check response status code
         if (response.statusCode() != 200) {
             throw new Exception("GET " + endpoint + " → " + response.statusCode() + ": " + response.body());
         }
-
-        // 4. Deserialize and return
         return JsonUtil.fromJson(response.body(), AgvStatus.class);
     }
 
-    /**
-     * Sends an HTTP PUT to the AGV endpoint with the given JSON body.
-     * Used for both load-program and execute-program requests.
-     *
-     * @param jsonBody request payload, e.g. {@code {"Program name":"...", "State":1}}
-     * @throws Exception if the request fails or the response cannot be parsed
-     */
-    public void sendPut(String jsonBody) throws Exception {
-        // 1. Build PUT request with jsonBody as body publisher
+    private void sendPut(String jsonBody) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .header("Content-Type", "application/json")
                 .build();
-
-        // 2. Send the request
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        // 3. Check response status code
         if (response.statusCode() != 200) {
             throw new Exception("PUT " + endpoint + " body=" + jsonBody + " → " + response.statusCode() + ": " + response.body());
         }
-
-        // 4. Deserialize and return AgvStatus
-        JsonUtil.fromJson(response.body(), AgvStatus.class);
     }
 }

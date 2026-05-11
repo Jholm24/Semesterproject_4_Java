@@ -1,11 +1,14 @@
-/**
- * AGV module — REST client component.
- * Implements {@link dk.sdu.st4.common.services.IAgv}.
-**/
+import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.services.IConnect;
+import dk.sdu.st4.agv.service.AgvServiceImpl;
+import dk.sdu.st4.agv.service.AgvConnect;
 
 module dk.sdu.st4.agv {
     requires java.net.http;
     requires dk.sdu.st4.common;
 
     exports dk.sdu.st4.agv.service;
+
+    provides IAgv     with AgvServiceImpl;
+    provides IConnect with AgvConnect;
 }
