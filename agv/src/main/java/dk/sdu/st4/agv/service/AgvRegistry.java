@@ -2,6 +2,7 @@ package dk.sdu.st4.agv.service;
 
 import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.services.IAgvRegistry;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,13 +12,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class AgvRegistry {
+public class AgvRegistry implements IAgvRegistry {
 
     private final Queue<String>     pending   = new ConcurrentLinkedQueue<>();
     private final Map<String, IAgv> services  = new ConcurrentHashMap<>();
     private final Queue<String>     available = new ConcurrentLinkedQueue<>();
     private final Set<String>       active    = ConcurrentHashMap.newKeySet();
 
+    @Override
     public void loadFromDb() {
         String sql = "SELECT serial_no FROM machines WHERE type = 'AGV'";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql);
@@ -30,6 +32,7 @@ public class AgvRegistry {
         }
     }
 
+    @Override
     public void connectNext() {
         String sn = pending.poll();
         if (sn == null) return;
@@ -49,6 +52,7 @@ public class AgvRegistry {
         }
     }
 
+    @Override
     public IAgv acquire() {
         String sn = available.poll();
         if (sn == null) return null;
@@ -56,6 +60,7 @@ public class AgvRegistry {
         return services.get(sn);
     }
 
+    @Override
     public void release(IAgv agv) {
         services.entrySet().stream()
                 .filter(e -> e.getValue() == agv)

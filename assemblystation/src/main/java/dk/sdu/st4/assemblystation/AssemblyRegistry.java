@@ -1,5 +1,8 @@
 package dk.sdu.st4.assemblystation;
+
 import dk.sdu.st4.common.db.DBConnection;
+import dk.sdu.st4.common.services.IAssembly;
+import dk.sdu.st4.common.services.IAssemblyRegistry;
 import dk.sdu.st4.common.services.IConnect;
 
 import java.sql.*;
@@ -8,21 +11,16 @@ import java.util.Queue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-public class AssemblyRegistry {
-    private static AssemblyRegistry instance;
-    private final Queue<IConnect> available = new LinkedList<>();
-    private final Map<String, IConnect> active = new HashMap<>();
 
-    private AssemblyRegistry() {}
+public class AssemblyRegistry implements IAssemblyRegistry {
 
-    public static synchronized AssemblyRegistry getInstance() {
-        if (instance == null) {
-            instance = new AssemblyRegistry();
-        }
-        return instance;
-    }
+    private final Queue<IConnect>        pending   = new LinkedList<>();
+    private final Map<String, IAssembly> services  = new HashMap<>();
+    private final Queue<String>          available = new LinkedList<>();
+    private final java.util.Set<String>  active    = new java.util.HashSet<>();
 
-    public void configure() throws Exception {
+    @Override
+    public void loadFromDb() throws Exception {
         String sql = "SELECT serial_no FROM machines WHERE type = 'ASSEMBLY_STATION'";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -30,12 +28,13 @@ public class AssemblyRegistry {
             while (rs.next()) {
                 String serialNo = rs.getString("serial_no");
                 AssemblyConnect connect = new AssemblyConnect();
-               connect.setMachineId(serialNo);
-                available.add(connect);
+                connect.setMachineId(serialNo);
+                pending.add(connect);
             }
         }
     }
 
+    @Override
     public void addMachine(String serialNumber, String type, String baseUrl) {
         String sql = "INSERT INTO machines (serial_no, type, base_url) VALUES (?, ?, ?)";
         try (Connection conn = DBConnection.getInstance().getConnection();
@@ -49,6 +48,7 @@ public class AssemblyRegistry {
         }
     }
 
+    @Override
     public void removeMachine(String serialNumber) {
         String sql = "DELETE FROM machines WHERE serial_no = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
@@ -60,19 +60,34 @@ public class AssemblyRegistry {
         }
     }
 
+    @Override
     public IConnect connectNext() throws ExecutionException, InterruptedException {
-        if (available.isEmpty()) return null;
-        IConnect machine = available.poll();
+        if (pending.isEmpty()) return null;
+        IConnect machine = pending.poll();
         machine.connectMachine(machine.getMachineId()).get();
-        active.put("assembly-" + (active.size() + 1), machine);
+        String sn = machine.getMachineId();
+        AssemblyController controller = new AssemblyController(((AssemblyConnect) machine).getModel());
+        services.put(sn, controller);
+        available.add(sn);
         return machine;
     }
 
-    public void disconnect(String key) {
-        IConnect machine = active.remove(key);
-        if (machine != null) {
-            machine.disconnectMachine(machine.getMachineId());
-            available.add(machine);
-        }
+    @Override
+    public IAssembly acquire() {
+        String sn = available.isEmpty() ? null : ((LinkedList<String>) available).poll();
+        if (sn == null) return null;
+        active.add(sn);
+        return services.get(sn);
+    }
+
+    @Override
+    public void release(IAssembly assembly) {
+        services.entrySet().stream()
+                .filter(e -> e.getValue() == assembly)
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .ifPresent(sn -> {
+                    if (active.remove(sn)) available.add(sn);
+                });
     }
 }

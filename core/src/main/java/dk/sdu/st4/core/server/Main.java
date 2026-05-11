@@ -1,22 +1,13 @@
 package dk.sdu.st4.core.server;
 
-import dk.sdu.st4.app.ProductionOrchestrator;
-import dk.sdu.st4.app.Registries.AgvRegistry;
-import dk.sdu.st4.app.Registries.AssemblyRegistry;
-import dk.sdu.st4.app.Registries.WarehouseRegistry;
 import dk.sdu.st4.common.db.DbLineRepository;
+import dk.sdu.st4.common.services.IAgvRegistry;
+import dk.sdu.st4.common.services.IAssemblyRegistry;
+import dk.sdu.st4.common.services.IWarehouseRegistry;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.nio.file.Path;
 
-/**
- * Entry point for the DECKFLOW production line server.
- *
- * Run from the project root with:
- *   mvn exec:java -pl core
- *
- * Then open http://localhost:8080 in your browser.
- * Requires `docker compose up -d` for the AGV emulator (port 8082).
- */
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -24,21 +15,21 @@ public class Main {
         Path uiRoot = Path.of(System.getProperty("ui.path",
             "core/src/main/java/dk/sdu/st4/core/ui")).toAbsolutePath();
 
-        AgvRegistry      agvRegistry      = new AgvRegistry();
-        WarehouseRegistry warehouseRegistry = new WarehouseRegistry();
-        AssemblyRegistry  assemblyRegistry  = new AssemblyRegistry();
+        AnnotationConfigApplicationContext ctx =
+                new AnnotationConfigApplicationContext(ModuleConfig.class);
 
-        agvRegistry.loadFromDb();
-        warehouseRegistry.loadFromDb();
-        assemblyRegistry.loadFromDb();
+        IAgvRegistry       agvRegistry       = ctx.getBean(IAgvRegistry.class);
+        IWarehouseRegistry warehouseRegistry = ctx.getBean(IWarehouseRegistry.class);
+        IAssemblyRegistry  assemblyRegistry  = ctx.getBean(IAssemblyRegistry.class);
 
-        java.util.List<java.util.Map<String, Object>> lines = DbLineRepository.getAllLines();
-        String lineId = lines.isEmpty() ? null : (String) lines.get(0).get("id");
+        String lineId = DbLineRepository.getAllLines().stream()
+                .map(l -> (String) l.get("id"))
+                .findFirst().orElse(null);
 
         ProductionOrchestrator orchestrator = new ProductionOrchestrator(
                 agvRegistry, warehouseRegistry, assemblyRegistry, lineId);
-        ApiServer server = new ApiServer(orchestrator, port, uiRoot);
 
+        ApiServer server = new ApiServer(orchestrator, port, uiRoot);
         server.start();
 
         System.out.println("=================================================");
@@ -48,7 +39,6 @@ public class Main {
         System.out.println("  Requires: docker compose up -d");
         System.out.println("=================================================");
 
-        // keep the main thread alive
         Thread.currentThread().join();
     }
 }

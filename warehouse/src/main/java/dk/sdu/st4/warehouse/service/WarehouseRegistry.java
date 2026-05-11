@@ -2,16 +2,18 @@ package dk.sdu.st4.warehouse.service;
 
 import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.common.services.IWarehouse;
+import dk.sdu.st4.common.services.IWarehouseRegistry;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class WarehouseRegistry {
+public class WarehouseRegistry implements IWarehouseRegistry {
 
     private final Map<String, IWarehouse> services = new ConcurrentHashMap<>();
 
+    @Override
     public void loadFromDb() {
         String sql = "SELECT serial_no FROM machines WHERE type = 'WAREHOUSE'";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql);
@@ -28,7 +30,7 @@ public class WarehouseRegistry {
             throw new RuntimeException("Failed to load warehouses from DB", e);
         }
     }
-
+@Override
     public void connect(String serialNumber) {
         String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql)) {
@@ -44,11 +46,11 @@ public class WarehouseRegistry {
             throw new RuntimeException("Failed to connect warehouse " + serialNumber, e);
         }
     }
-
+    @Override
     public void disconnect(String serialNumber) {
         services.remove(serialNumber);
     }
-
+    @Override
     public IWarehouse getWarehouse(String serialNumber) {
         return services.get(serialNumber);
     }
