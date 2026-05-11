@@ -6,6 +6,7 @@ import dk.sdu.st4.agv.service.AgvConnect;
 module dk.sdu.st4.agv {
     requires java.net.http;
     requires dk.sdu.st4.common;
+    requires java.sql;
 
     exports dk.sdu.st4.agv.service;
 
