@@ -29,6 +29,7 @@
             <version>4.0.4</version>
         </dependency>
     </dependencies>
+    <packaging>jar</packaging>
 
     <build>
         <plugins>

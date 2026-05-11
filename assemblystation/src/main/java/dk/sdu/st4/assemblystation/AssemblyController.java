@@ -1,155 +1,59 @@
 package dk.sdu.st4.assemblystation;
-import java.util.Random;
+
 import dk.sdu.st4.common.services.IAssembly;
-import dk.sdu.st4.common.services.IConnect;
-import org.eclipse.paho.client.mqttv3.*;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import java.util.Random;
 
-public class AssemblyController implements IConnect, IAssembly {
+public class AssemblyController implements IAssembly {
 
     private final AssemblyModel model;
-    private MqttClient mqttClient;
-    public AssemblyController(String broker, int port) throws MqttException {
-        model = new AssemblyModel();
-        model.broker = broker;
-        model.port = port;
+
+    public AssemblyController() {
+        this(new AssemblyModel());
     }
 
-    private MqttCallback buildCallback() {
-        return new MqttCallback() {
-            @Override
-            public void connectionLost(Throwable cause) {
-                System.out.println("Connection lost: " + cause.getMessage());
-            }
-
-            @Override
-            public void messageArrived(String topic, MqttMessage message) {
-                String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-
-                switch (topic) {
-                    case "emulator/operation":
-                        JsonObject jsonOperation = JsonParser.parseString(payload).getAsJsonObject();
-                        break;
-                    case "emulator/status":
-                        JsonObject jsonStatus = JsonParser.parseString(payload).getAsJsonObject();
-                        model.state = jsonStatus.get("State").getAsInt();
-                        model.lastOperationId = jsonStatus.get("LastOperation").getAsInt();
-                        model.operationId = jsonStatus.get("CurrentOperation").getAsInt();
-                        break;
-                    case "emulator/checkhealth":
-                        JsonObject jsonHealth = JsonParser.parseString(payload).getAsJsonObject();
-                        model.isHealthy = jsonHealth.get("IsHealthy").getAsBoolean();
-                        break;
-                    case "emulator/response":
-                        // "{ \"ProcessID\": N } finished after NNNms." — operation completed
-                        model.state = 0;
-                        System.out.println("Assembly response: " + payload);
-                        break;
-                }
-            }
-
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {}
-        };
+    public AssemblyController(AssemblyModel model) {
+        this.model = model;
     }
 
-    // --- IAssembly getters/setters ---//
-    @Override public void sendOperationId(int id) {
+    @Override
+    public void sendOperationId(int id) {
         String json = String.format("{\"ProcessID\": %d}", id);
         try {
             long deadline = System.currentTimeMillis() + 15_000;
-            while (!mqttClient.isConnected() && System.currentTimeMillis() < deadline) {
+            while (!model.mqttClient.isConnected() && System.currentTimeMillis() < deadline) {
                 Thread.sleep(200);
             }
-            MqttMessage message = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
-            mqttClient.publish("emulator/operation", message);
+            model.mqttClient.publish("emulator/operation",
+                    new MqttMessage(json.getBytes(StandardCharsets.UTF_8)));
         } catch (MqttException | InterruptedException e) {
             e.printStackTrace();
         }
     }
 
-    //Random operation number so we can show different operations
-    @Override public void setExecuteOperation(){
-        Random r = new Random();
-        int number = r.nextInt(9998) + 1;
-        sendOperationId(number);
+    @Override
+    public void setExecuteOperation() {
+        sendOperationId(new Random().nextInt(9998) + 1);
     }
 
-    @Override public void setErrorOperation(){
-
+    @Override
+    public void setErrorOperation() {
         sendOperationId(1);
     }
 
-    @Override public int getLastOperationId()        { return model.lastOperationId; }
+    @Override public int     getLastOperationId()                { return model.lastOperationId; }
+    @Override public int     getStatus()  throws MqttException   { return model.state; }
+    @Override public boolean getHealth()  throws MqttException   { return model.isHealthy; }
+    @Override public int     getOperation() throws MqttException { return model.operationId; }
 
     @Override
-    public int getStatus() throws MqttException, InterruptedException {
-        return model.state;
+    public void subscribeAll() throws MqttException {
+        model.mqttClient.subscribe("emulator/status");
+        model.mqttClient.subscribe("emulator/checkhealth");
+        model.mqttClient.subscribe("emulator/operation");
+        model.mqttClient.subscribe("emulator/response");
     }
-
-    @Override public boolean getHealth() throws MqttException, InterruptedException{
-        return model.isHealthy;
-    }
-    @Override public int getOperation() throws MqttException, InterruptedException{
-        return model.operationId;
-    }
-
-    @Override
-    public void subscribeAll() throws MqttException, InterruptedException {
-        mqttClient.subscribe("emulator/status");
-        mqttClient.subscribe("emulator/checkhealth");
-        mqttClient.subscribe("emulator/operation");
-        mqttClient.subscribe("emulator/response");
-    }
-
-    // --- IConnect getters/setters ---
-    @Override public String getMachineId()               { return model.serialNumber; }
-    @Override public void setMachineId(String serialNumber) { model.serialNumber = serialNumber; }
-
-    @Override public String getMachineType()          { return model.machineType; }
-    @Override public void setMachineType(String type) { model.machineType = type; }
-
-    @Override
-    public void addMachine(String machineSerialNumber, String type, String variant, String base_url) {
-
-    }
-
-    // --- IConnect methods ---
-    @Override
-    public CompletableFuture<Void> connectMachine(String machineId) {
-        try {
-            MqttConnectOptions options = new MqttConnectOptions();
-            options.setCleanSession(true);
-            options.setKeepAliveInterval(10);  // ping every 10s to prevent broker idle-timeout drops
-            options.setAutomaticReconnect(true);
-
-            mqttClient = new MqttClient(
-                    "tcp://" + model.broker + ":" + model.port,
-                    machineId,  // stable ID so the broker can deliver queued messages after reconnect
-                    new MemoryPersistence()
-            );
-            mqttClient.setCallback(buildCallback());
-            mqttClient.connect(options);
-            subscribeAll();
-            System.out.println("Connected to " + model.broker + ":" + model.port);
-        } catch (MqttException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        return CompletableFuture.completedFuture(null);
-    }
-    @Override public void removeMachine(String serialNumber) {}
-    @Override public void disconnectMachine(String serialNumber) {
-        try {
-            mqttClient.disconnect();
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-    }
-    @Override public boolean isConnected(String machineId) { return mqttClient.isConnected(); }
-
 }

@@ -28,6 +28,7 @@
             <version>2.10.1</version>
         </dependency>
     </dependencies>
+    <packaging>jar</packaging>
 
     <build>
         <plugins>

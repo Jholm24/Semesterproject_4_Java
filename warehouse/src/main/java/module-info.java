@@ -1,3 +1,6 @@
+import dk.sdu.st4.common.services.IConnect;
+import dk.sdu.st4.common.services.IWarehouse;
+import dk.sdu.st4.warehouse.service.WarehouseConnect;
 import dk.sdu.st4.warehouse.service.WarehouseService;
 
 module dk.sdu.st4.warehouse {
@@ -11,6 +14,7 @@ module dk.sdu.st4.warehouse {
     requires dk.sdu.st4.common;
     requires org.glassfish.jaxb.core;
 
-    provides dk.sdu.st4.common.services.IWarehouse
+    provides IWarehouse
             with WarehouseService;
+    provides IConnect with WarehouseConnect;
 }
