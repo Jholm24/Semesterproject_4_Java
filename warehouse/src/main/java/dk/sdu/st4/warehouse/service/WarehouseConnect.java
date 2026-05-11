@@ -21,7 +21,7 @@ public class WarehouseConnect implements IConnect {
         model.baseUrl = baseUrl;
     }
 
-    WarehouseModel getModel() { return model; }
+    public WarehouseModel getModel() { return model; }
 
     @Override public String getMachineId()                                          { return model.serialNumber; }
     @Override public void   setMachineId(String serialNumber)                      { model.serialNumber = serialNumber; }

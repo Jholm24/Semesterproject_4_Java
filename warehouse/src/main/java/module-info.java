@@ -13,6 +13,7 @@ module dk.sdu.st4.warehouse {
     requires jakarta.xml.ws;
     requires dk.sdu.st4.common;
     requires org.glassfish.jaxb.core;
+    requires java.sql;
 
     provides IWarehouse
             with WarehouseService;

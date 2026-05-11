@@ -1,4 +1,4 @@
-﻿package dk.sdu.st4.common.util;
+package dk.sdu.st4.common.util;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
