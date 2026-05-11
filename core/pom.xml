@@ -21,10 +21,6 @@
         </dependency>
         <dependency>
             <groupId>dk.sdu.st4</groupId>
-            <artifactId>assemblystation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dk.sdu.st4</groupId>
             <artifactId>app</artifactId>
         </dependency>
     </dependencies>
