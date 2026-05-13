@@ -2,6 +2,7 @@ package dk.sdu.st4.agv.service;
 
 import dk.sdu.st4.common.db.DBConnection;
 import dk.sdu.st4.common.services.IAgv;
+import dk.sdu.st4.common.services.spi.IAgvFactory;
 import dk.sdu.st4.common.services.IAgvRegistry;
 
 import java.sql.PreparedStatement;
@@ -10,10 +11,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Queue;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 public class AgvRegistry implements IAgvRegistry {
 
@@ -21,6 +24,11 @@ public class AgvRegistry implements IAgvRegistry {
     private final Map<String, IAgv> services  = new ConcurrentHashMap<>();
     private final Queue<String>     available = new ConcurrentLinkedQueue<>();
     private final Set<String>       active    = ConcurrentHashMap.newKeySet();
+
+    private final Map<String, IAgvFactory> factories =
+            ServiceLoader.load(IAgvFactory.class).stream()
+                    .map(ServiceLoader.Provider::get)
+                    .collect(Collectors.toMap(IAgvFactory::variant, f -> f));
 
     @Override
     public void loadFromDb() {
@@ -48,14 +56,21 @@ public class AgvRegistry implements IAgvRegistry {
     @Override
     public void connect(String sn) {
         if (services.containsKey(sn)) return;
-        String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
+        String sql = "SELECT base_url, protocol FROM machines WHERE serial_no = ?";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql)) {
             ps.setString(1, sn);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) { System.err.println("[AgvRegistry] " + sn + " not found in DB"); return; }
-                AgvConnect connect = new AgvConnect(rs.getString("base_url"));
-                connect.connectMachine(sn);
-                services.put(sn, connect.getModel().client);
+                String baseUrl  = rs.getString("base_url");
+                String protocol = rs.getString("protocol");
+                IAgvFactory factory = factories.get(protocol);
+                if (factory == null) {
+                    System.err.println("[AgvRegistry] No IAgvFactory for protocol '" + protocol
+                            + "' (serial " + sn + ") — vendor module missing in mods-mvn?");
+                    return;
+                }
+                IAgv agv = factory.create(sn, baseUrl);
+                services.put(sn, agv);
                 available.add(sn);
             }
         } catch (Exception e) {

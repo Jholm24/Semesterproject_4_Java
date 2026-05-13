@@ -180,6 +180,7 @@ db.properties
 # Claude Code
 ##############################
 .claude/settings.local.json
+forklaringer/
 
 ##############################
 # Misc

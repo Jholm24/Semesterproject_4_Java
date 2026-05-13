@@ -39,13 +39,14 @@ public abstract class DbMachineConnect implements IConnect {
 
     /** Inserts a new row into the {@code machines} table. */
     @Override
-    public void addMachine(String serialNo, String type, String variant, String base_url) {
-        String sql = "INSERT INTO machines (serial_no, type, variant, base_url) VALUES (?, ?, ?, ?)";
+    public void addMachine(String serialNo, String type, String variant, String protocol, String base_url) {
+        String sql = "INSERT INTO machines (serial_no, type, variant, protocol, base_url) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql)) {
             ps.setString(1, serialNo);
             ps.setString(2, type);
             ps.setString(3, variant);
-            ps.setString(4, base_url);
+            ps.setString(4, protocol);
+            ps.setString(5, base_url);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to add machine " + serialNo, e);

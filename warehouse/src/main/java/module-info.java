@@ -1,9 +1,11 @@
 import dk.sdu.st4.common.services.IConnect;
 import dk.sdu.st4.common.services.IWarehouse;
 import dk.sdu.st4.common.services.IWarehouseRegistry;
+import dk.sdu.st4.common.services.spi.IWarehouseFactory;
 import dk.sdu.st4.warehouse.service.WarehouseConnect;
 import dk.sdu.st4.warehouse.service.WarehouseRegistry;
 import dk.sdu.st4.warehouse.service.WarehouseService;
+import dk.sdu.st4.warehouse.service.WarehouseSoapFactory;
 
 module dk.sdu.st4.warehouse {
     exports dk.sdu.st4.warehouse.service;
@@ -17,7 +19,10 @@ module dk.sdu.st4.warehouse {
     requires org.glassfish.jaxb.core;
     requires java.sql;
 
+    uses IWarehouseFactory;
+
     provides IWarehouse         with WarehouseService;
     provides IConnect           with WarehouseConnect;
     provides IWarehouseRegistry with WarehouseRegistry;
+    provides IWarehouseFactory  with WarehouseSoapFactory;
 }

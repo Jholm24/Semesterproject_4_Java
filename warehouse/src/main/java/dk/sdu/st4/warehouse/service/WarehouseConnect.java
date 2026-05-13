@@ -27,7 +27,7 @@ public class WarehouseConnect implements IConnect {
     @Override public void   setMachineId(String serialNumber)                      { model.serialNumber = serialNumber; }
     @Override public String getMachineType()                                        { return model.machineType; }
     @Override public void   setMachineType(String type)                            { model.machineType = type; }
-    @Override public void   addMachine(String sn, String type, String v, String u) {}
+    @Override public void   addMachine(String sn, String type, String v, String p, String u) {}
     @Override public void   removeMachine(String serialNumber)                     {}
 
     @Override

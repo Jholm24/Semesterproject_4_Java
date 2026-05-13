@@ -6,7 +6,7 @@ import java.util.concurrent.ExecutionException;
 
 public interface IAssemblyRegistry {
     void loadFromDb() throws Exception;
-    void addMachine(String serialNumber, String type, String baseUrl);
+    void addMachine(String serialNumber, String type, String protocol, String baseUrl);
     void removeMachine(String serialNumber);
     IConnect connectNext() throws ExecutionException, InterruptedException;
     void connect(String serialNo) throws Exception;

@@ -13,7 +13,7 @@ public interface IConnect {
     void setMachineType(String machineType);
 
     // Machine management
-    void addMachine(String serialNumber,String type, String variant, String base_url);
+    void addMachine(String serialNumber, String type, String variant, String protocol, String base_url);
     void removeMachine(String serialNumber);
     CompletableFuture<Void> connectMachine(String serialNumber);
     void disconnectMachine(String serialNumber);
