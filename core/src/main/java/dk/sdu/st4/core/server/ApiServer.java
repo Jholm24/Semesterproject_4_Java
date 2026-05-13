@@ -39,6 +39,7 @@ public class ApiServer {
         server.createContext("/api/events",    ex -> handle(ex, this::handleEvents));
         server.createContext("/api/control",   ex -> handle(ex, this::handleControl));
         server.createContext("/api/machines",  ex -> handle(ex, this::handleMachines));
+        server.createContext("/api/catalog",   ex -> handle(ex, this::handleCatalog));
         server.createContext("/api/lines",     ex -> handle(ex, this::handleLines));
         server.createContext("/api/employees", ex -> handle(ex, this::handleEmployees));
         server.createContext("/api/templates", ex -> handle(ex, this::handleTemplates));
@@ -107,6 +108,29 @@ public class ApiServer {
         sendJson(ex, 200, orchestrator.machinesJson());
     }
 
+    private void handleCatalog(HttpExchange ex) throws IOException {
+        if (isPreflight(ex)) return;
+        if (!"GET".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+
+        List<Map<String, Object>> all = DbLineRepository.getAllMachines();
+        StringBuilder agv = new StringBuilder();
+        StringBuilder wh  = new StringBuilder();
+        StringBuilder asm = new StringBuilder();
+
+        for (Map<String, Object> m : all) {
+            String type = (String) m.get("type");
+            String sn   = (String) m.get("serialNo");
+            String entry = "{\"serialNo\":\"" + escapeJson(sn) + "\"}";
+            switch (type) {
+                case "AGV"              -> { if (agv.length() > 0) agv.append(","); agv.append(entry); }
+                case "WAREHOUSE"        -> { if (wh.length()  > 0) wh.append(",");  wh.append(entry); }
+                case "ASSEMBLY_STATION" -> { if (asm.length() > 0) asm.append(","); asm.append(entry); }
+            }
+        }
+
+        sendJson(ex, 200, "{\"agv\":[" + agv + "],\"warehouse\":[" + wh + "],\"assembly\":[" + asm + "]}");
+    }
+
     // ── /api/lines ───────────────────────────────────────────────────────────
 
     private void handleLines(HttpExchange ex) throws IOException {
@@ -124,6 +148,7 @@ public class ApiServer {
                 List<String> machines  = extractJsonArray(body, "machines");
                 List<String> operators = extractJsonArray(body, "operators");
                 DbLineRepository.createLine(id, title.isEmpty() ? id : title, product, machines, operators);
+                orchestrator.onMachinesAssigned(machines);
                 sendJson(ex, 201, buildLinesJson());
             }
             case "PUT" -> {
@@ -132,7 +157,12 @@ public class ApiServer {
                 String product = extractJsonString(body, "product");
                 List<String> machines  = extractJsonArray(body, "machines");
                 List<String> operators = extractJsonArray(body, "operators");
+                List<String> oldMachines = DbLineRepository.getMachinesForLine(id);
                 DbLineRepository.updateLine(id, title, product, machines, operators);
+                List<String> added = new ArrayList<>(machines); added.removeAll(oldMachines);
+                List<String> removed = new ArrayList<>(oldMachines); removed.removeAll(machines);
+                orchestrator.onMachinesAssigned(added);
+                orchestrator.onMachinesUnassigned(removed);
                 sendJson(ex, 200, buildLinesJson());
             }
             case "PATCH" -> {
@@ -146,7 +176,9 @@ public class ApiServer {
             }
             case "DELETE" -> {
                 String id = extractJsonString(body, "id");
+                List<String> machines = DbLineRepository.getMachinesForLine(id);
                 DbLineRepository.deleteLine(id);
+                orchestrator.onMachinesUnassigned(machines);
                 sendJson(ex, 200, buildLinesJson());
             }
             default -> ex.sendResponseHeaders(405, -1);

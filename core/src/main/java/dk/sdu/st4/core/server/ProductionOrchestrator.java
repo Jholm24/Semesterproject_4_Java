@@ -149,6 +149,52 @@ public class ProductionOrchestrator {
         return steps;
     }
 
+    // ── Dynamisk maskine-tilslutning ─────────────────────────────────────────
+
+    public void onMachinesAssigned(List<String> serialNos) {
+        for (String sn : serialNos) connectMachine(sn);
+    }
+
+    public void onMachinesUnassigned(List<String> serialNos) {
+        List<Map<String, Object>> allLines = DbLineRepository.getAllLines();
+        for (String sn : serialNos) {
+            boolean stillUsed = allLines.stream()
+                .anyMatch(l -> ((List<String>) l.get("machines")).contains(sn));
+            if (!stillUsed) disconnectMachine(sn);
+        }
+    }
+
+    private void connectMachine(String sn) {
+        String type = getMachineType(sn);
+        if (type == null) return;
+        try {
+            switch (type) {
+                case "AGV"              -> agvRegistry.connect(sn);
+                case "WAREHOUSE"        -> warehouseRegistry.connect(sn);
+                case "ASSEMBLY_STATION" -> assemblyRegistry.connect(sn);
+            }
+        } catch (Exception e) {
+            System.err.println("[Orchestrator] Kunne ikke tilslutte " + sn + ": " + e.getMessage());
+        }
+    }
+
+    private void disconnectMachine(String sn) {
+        String type = getMachineType(sn);
+        if (type == null) return;
+        switch (type) {
+            case "AGV"              -> agvRegistry.disconnect(sn);
+            case "WAREHOUSE"        -> warehouseRegistry.disconnect(sn);
+            case "ASSEMBLY_STATION" -> assemblyRegistry.disconnect(sn);
+        }
+    }
+
+    private String getMachineType(String sn) {
+        return DbLineRepository.getAllMachines().stream()
+            .filter(m -> sn.equals(m.get("serialNo")))
+            .map(m -> (String) m.get("type"))
+            .findFirst().orElse(null);
+    }
+
     // ── Kontrol-API ──────────────────────────────────────────────────────────
 
     public synchronized void start() {
@@ -205,29 +251,52 @@ public class ProductionOrchestrator {
     }
 
     public String machinesJson() {
-        List<Map<String, Object>> all = DbLineRepository.getAllMachines();
         StringBuilder agvArr = new StringBuilder("[");
         StringBuilder whArr  = new StringBuilder("[");
         StringBuilder asArr  = new StringBuilder("[");
         boolean firstAgv = true, firstWh = true, firstAs = true;
 
-        for (Map<String, Object> m : all) {
-            String sn      = esc((String) m.get("serialNo"));
-            String type    = (String) m.get("type");
-            String variant = esc((String) m.get("variant"));
-            String url     = esc((String) m.get("baseUrl"));
-            String entry   = String.format(
-                "{\"serialNo\":\"%s\",\"type\":\"%s\",\"variant\":\"%s\",\"baseUrl\":\"%s\"}",
-                sn, type, variant, url);
-            switch (type != null ? type : "") {
-                case "AGV"              -> { if (!firstAgv) agvArr.append(","); agvArr.append(entry); firstAgv = false; }
-                case "WAREHOUSE"        -> { if (!firstWh)  whArr.append(",");  whArr.append(entry);  firstWh  = false; }
-                case "ASSEMBLY_STATION" -> { if (!firstAs)  asArr.append(",");  asArr.append(entry);  firstAs  = false; }
-            }
+        for (Map<String, Object> m : agvRegistry.getMachinesStatus()) {
+            String battery = m.get("battery") != null ? m.get("battery").toString() : "null";
+            String entry = String.format(
+                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"agvState\":\"%s\",\"battery\":%s,\"program\":\"%s\"}",
+                esc(str(m, "serialNo")), str(m, "poolStatus"), str(m, "agvState"),
+                battery, esc(str(m, "program")));
+            if (!firstAgv) agvArr.append(",");
+            agvArr.append(entry);
+            firstAgv = false;
+        }
+
+        for (Map<String, Object> m : warehouseRegistry.getMachinesStatus()) {
+            int state = m.get("warehouseState") instanceof Number n ? n.intValue() : 0;
+            String entry = String.format(
+                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"warehouseState\":%d}",
+                esc(str(m, "serialNo")), str(m, "poolStatus"), state);
+            if (!firstWh) whArr.append(",");
+            whArr.append(entry);
+            firstWh = false;
+        }
+
+        for (Map<String, Object> m : assemblyRegistry.getMachinesStatus()) {
+            int     state     = m.get("state")           instanceof Number n ? n.intValue()  : 0;
+            String  healthy   = m.get("healthy")         instanceof Boolean b ? b.toString() : "null";
+            int     opId      = m.get("operationId")     instanceof Number n ? n.intValue()  : -1;
+            int     lastOpId  = m.get("lastOperationId") instanceof Number n ? n.intValue()  : -1;
+            String entry = String.format(
+                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"state\":%d,\"healthy\":%s,\"operationId\":%d,\"lastOperationId\":%d}",
+                esc(str(m, "serialNo")), str(m, "poolStatus"), state, healthy, opId, lastOpId);
+            if (!firstAs) asArr.append(",");
+            asArr.append(entry);
+            firstAs = false;
         }
 
         return String.format("{\"agv\":%s,\"warehouse\":%s,\"assembly\":%s}",
             agvArr.append("]"), whArr.append("]"), asArr.append("]"));
+    }
+
+    private static String str(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        return v != null ? v.toString() : "";
     }
 
     // ── Cyklus-løkke ─────────────────────────────────────────────────────────

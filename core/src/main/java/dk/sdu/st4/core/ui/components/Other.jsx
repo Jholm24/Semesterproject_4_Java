@@ -15,11 +15,62 @@ function TaskBuilder({ nav }) {
     'wh-pick','agv-move-wh','agv-pick-wh','agv-move-as','agv-put-as','as-op','as-health','agv-pick-as','agv-move-wh','agv-put-wh','wh-insert'
   ];
 
-  const lineId = nav.activeLine || 'line-1';
-  const seqKey = `sb_seq_${lineId}`;
+  const isCreateMode = nav.activeLine === '__new__';
+  const lineId = isCreateMode ? '__new__' : (nav.activeLine || 'line-1');
 
+  // ── Create-mode state ───────────────────────────────────────────────────
+  const [draft, setDraft] = useState({ title: '', product: '' });
+  const [draftMachines, setDraftMachines] = useState([]);
+  const [draftPool, setDraftPool] = useState({ agv: [], warehouse: [], assembly: [] });
+  const [draftOccupied, setDraftOccupied] = useState(new Set());
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (!isCreateMode) return;
+    Promise.all([
+      fetch(API_BASE + '/api/catalog').then(r => r.json()),
+      fetch(API_BASE + '/api/lines').then(r => r.json()),
+    ]).then(([pool, lines]) => {
+      setDraftPool(pool || {});
+      const occ = new Set();
+      (lines || []).forEach(l => (l.machines || []).forEach(m => occ.add(m)));
+      setDraftOccupied(occ);
+    }).catch(() => {});
+  }, [isCreateMode]);
+
+  const toggleDraftMachine = (sn) =>
+    setDraftMachines(ms => ms.includes(sn) ? ms.filter(x => x !== sn) : [...ms, sn]);
+
+  const createLine = async () => {
+    if (!draft.title.trim() || creating) return;
+    setCreating(true);
+    try {
+      const lines = await fetch(API_BASE + '/api/lines').then(r => r.json()).catch(() => []);
+      const usedIds = new Set((lines || []).map(l => l.id));
+      let n = 1; while (usedIds.has('line-' + n)) n++;
+      const id = 'line-' + n;
+      const name = `Line-${String(n).padStart(2,'0')} · ${draft.title.trim()}`;
+      await fetch(API_BASE + '/api/lines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title: name, product: draft.product.trim() || '—',
+                               machines: draftMachines, operators: [] }),
+      });
+      await fetch(API_BASE + '/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineId: id, name: name + ' · Full Cycle',
+                               seq: JSON.stringify(seq.map(s => ({ id: s.id }))) }),
+      });
+      nav.setActiveLine(id);
+      nav.setView('dashboard');
+    } catch { setCreating(false); }
+  };
+
+  // ── Edit-mode state ─────────────────────────────────────────────────────
   const [lineName, setLineName] = useState(lineId.toUpperCase());
   useEffect(() => {
+    if (isCreateMode) return;
     fetch(API_BASE + '/api/lines')
       .then(r => r.json())
       .then(data => {
@@ -27,7 +78,7 @@ function TaskBuilder({ nav }) {
         if (found) setLineName(found.name);
       })
       .catch(() => {});
-  }, [lineId]);
+  }, [lineId, isCreateMode]);
 
   const [seq, setSeq] = useState(() => DEFAULT_SEQ.map((id,i) => ({ id, key: 'k'+i })));
   const [dragId, setDragId] = useState(null);
@@ -36,6 +87,7 @@ function TaskBuilder({ nav }) {
   const [saveBanner, setSaveBanner] = useState(false);
 
   const fetchTemplates = () => {
+    if (isCreateMode) return;
     fetch(API_BASE + '/api/templates?lineId=' + lineId)
       .then(r => r.json())
       .then(setSavedTemplates)
@@ -44,9 +96,11 @@ function TaskBuilder({ nav }) {
 
   useEffect(() => {
     setSeq(DEFAULT_SEQ.map((id,i) => ({ id, key: 'k'+i })));
-    setTemplateName(lineName + ' · Full Cycle');
-    fetchTemplates();
-  }, [lineId, lineName]);
+    if (!isCreateMode) {
+      setTemplateName(lineName + ' · Full Cycle');
+      fetchTemplates();
+    }
+  }, [lineId, lineName, isCreateMode]);
 
   const saveTemplate = async () => {
     await fetch(API_BASE + '/api/templates', {
@@ -74,35 +128,109 @@ function TaskBuilder({ nav }) {
   });
 
   const totalDur = seq.reduce((a,x) => a + (PALETTE.find(p=>p.id===x.id)?.dur || 0), 0);
-
   const typeColor = { warehouse: 'var(--c-wh)', agv: 'var(--c-agv)', assembly: 'var(--c-as)' };
+
+  const SETUP_TYPES = [
+    { key:'warehouse', label:'Warehouse', accent:'var(--c-wh)' },
+    { key:'agv',       label:'AGV',       accent:'var(--c-agv)' },
+    { key:'assembly',  label:'Assembly',  accent:'var(--c-as)' },
+  ];
 
   return (
     <main className="tb-page">
       <header className="tb-header">
         <div>
-          <div className="sec-kicker mono">TASK BUILDER</div>
-          <h1 className="sec-title">Sequence Editor — {templateName}</h1>
-          <div className="tb-sub mono">DRAG · DROP · reorder · save as template</div>
+          <div className="sec-kicker mono">{isCreateMode ? 'NEW PRODUCTION LINE' : 'TASK BUILDER'}</div>
+          <h1 className="sec-title">{isCreateMode ? 'Create Production Line' : `Sequence Editor — ${templateName}`}</h1>
+          <div className="tb-sub mono">{isCreateMode ? 'Configure line · Design sequence · Create' : 'DRAG · DROP · reorder · save as template'}</div>
         </div>
         <div className="tb-head-actions">
-          <div className="tb-summary">
-            <div><span className="mono tb-k">STEPS</span><span className="tb-v">{seq.length}</span></div>
-            <div><span className="mono tb-k">DUR</span><span className="tb-v">{totalDur.toFixed(1)}s</span></div>
-          </div>
-          {savedTemplates.length > 0 && (
-            <select className="nl-input" style={{fontSize:12,padding:'4px 8px'}}
-              defaultValue="" onChange={e => { const t = savedTemplates.find(x=>String(x.id)===e.target.value); if(t) loadTemplate(t); e.target.value=''; }}>
-              <option value="" disabled>Load template…</option>
-              {savedTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+          {isCreateMode ? (
+            <>
+              <div className="tb-summary">
+                <div><span className="mono tb-k">STEPS</span><span className="tb-v">{seq.length}</span></div>
+                <div><span className="mono tb-k">DUR</span><span className="tb-v">{totalDur.toFixed(1)}s</span></div>
+                <div><span className="mono tb-k">MACHINES</span><span className="tb-v">{draftMachines.length}</span></div>
+              </div>
+              <button className="btn-ghost" onClick={() => nav.setView('lines')}>Cancel</button>
+              <button className="btn-primary" onClick={createLine} disabled={!draft.title.trim() || creating}>
+                {creating ? 'Creating…' : 'Create Line & Save Template'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="tb-summary">
+                <div><span className="mono tb-k">STEPS</span><span className="tb-v">{seq.length}</span></div>
+                <div><span className="mono tb-k">DUR</span><span className="tb-v">{totalDur.toFixed(1)}s</span></div>
+              </div>
+              {savedTemplates.length > 0 && (
+                <select className="nl-input" style={{fontSize:12,padding:'4px 8px'}}
+                  defaultValue="" onChange={e => { const t = savedTemplates.find(x=>String(x.id)===e.target.value); if(t) loadTemplate(t); e.target.value=''; }}>
+                  <option value="" disabled>Load template…</option>
+                  {savedTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+              <button className="btn-ghost" onClick={() => setSeq(DEFAULT_SEQ.map((id,i)=>({id,key:'k'+i})))}>Reset</button>
+              <button className="btn-primary" onClick={saveTemplate} style={{position:'relative'}}>
+                {saveBanner ? '✓ Saved' : 'Save Template'}
+              </button>
+            </>
           )}
-          <button className="btn-ghost" onClick={() => setSeq(DEFAULT_SEQ.map((id,i)=>({id,key:'k'+i})))}>Reset</button>
-          <button className="btn-primary" onClick={saveTemplate} style={{position:'relative'}}>
-            {saveBanner ? '✓ Saved' : 'Save Template'}
-          </button>
         </div>
       </header>
+
+      {isCreateMode && (
+        <section className="tb-setup">
+          <div className="tb-setup-info">
+            <div className="tb-setup-fields">
+              <div className="tb-setup-field">
+                <span className="mono tb-setup-k">LINE TITLE</span>
+                <input className="nl-input" value={draft.title}
+                  onChange={e => setDraft(d => ({...d, title: e.target.value}))}
+                  placeholder="e.g. Skateboard" autoFocus/>
+              </div>
+              <div className="tb-setup-field">
+                <span className="mono tb-setup-k">PRODUCT</span>
+                <input className="nl-input" value={draft.product}
+                  onChange={e => setDraft(d => ({...d, product: e.target.value}))}
+                  placeholder="e.g. Pro Deck 8.0&quot;"/>
+              </div>
+            </div>
+            <div className="tb-setup-machines">
+              <div className="mono tb-setup-k">ASSIGN MACHINES <span style={{opacity:.5}}>{draftMachines.length} selected</span></div>
+              <div className="tb-setup-pool">
+                {SETUP_TYPES.map(t => (
+                  <div key={t.key} className="tb-setup-type" style={{'--c': t.accent}}>
+                    <div className="mono tb-setup-type-head">{t.label}</div>
+                    {(draftPool[t.key] || []).length === 0
+                      ? <div className="mono tb-setup-empty">No machines</div>
+                      : (draftPool[t.key] || []).map(m => {
+                          const sn = m.serialNo || m.serialNumber;
+                          const occ = draftOccupied.has(sn);
+                          const picked = draftMachines.includes(sn);
+                          return (
+                            <button key={sn}
+                              className={'tb-setup-machine' + (picked ? ' picked' : '') + (occ ? ' occupied' : '')}
+                              onClick={() => !occ && toggleDraftMachine(sn)}
+                              disabled={occ}
+                              title={occ ? 'In use by another line' : sn}>
+                              <span className="tb-setup-check">{picked ? '✓' : ''}</span>
+                              <span className="mono" style={{fontSize:11}}>{sn}</span>
+                              {occ && <span className="mono tb-setup-occ">In use</span>}
+                            </button>
+                          );
+                        })
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mono tb-setup-hint">
+            ↓ Design the production sequence below, then click <strong>Create Line &amp; Save Template</strong>
+          </div>
+        </section>
+      )}
 
       <div className="tb-workspace">
         <aside className="tb-palette">
@@ -135,7 +263,9 @@ function TaskBuilder({ nav }) {
             if (d.startsWith('pal:')) addStep(d.slice(4));
           }}>
           <div className="tb-canvas-head">
-            <div className="mono tb-canvas-kicker">PRODUCTION CYCLE · {lineName.toUpperCase()}</div>
+            <div className="mono tb-canvas-kicker">
+              {isCreateMode ? `NEW LINE · ${draft.title.toUpperCase() || 'UNTITLED'}` : `PRODUCTION CYCLE · ${lineName.toUpperCase()}`}
+            </div>
             <div className="tb-canvas-legend">
               <span><span className="lg-dot" style={{background:'var(--c-wh)'}}/>Warehouse</span>
               <span><span className="lg-dot" style={{background:'var(--c-agv)'}}/>AGV</span>
@@ -607,7 +737,7 @@ function LinesManager({ nav }) {
           <h1 className="sec-title">Overview of all lines</h1>
         </div>
         <div className="emp-actions">
-          <button className="btn-primary" onClick={() => setModal('create')}>+ New line</button>
+          <button className="btn-primary" onClick={() => { nav.setActiveLine('__new__'); nav.setView('builder'); }}>+ New line</button>
         </div>
       </header>
       <div className="lines-grid">
@@ -688,12 +818,12 @@ function NewLineModal({ onClose, onCreate, onUpdate, existingLines, editing }) {
   // Machine pool from /api/machines
   const [rawPool, setRawPool] = useState({ agv: [], warehouse: [], assembly: [] });
   React.useEffect(() => {
-    fetch(API_BASE + '/api/machines').then(r => r.json()).then(setRawPool).catch(() => {});
+    fetch(API_BASE + '/api/catalog').then(r => r.json()).then(setRawPool).catch(() => {});
   }, []);
   const POOL = {
-    warehouse: (rawPool.warehouse || []).map(m => ({ id: m.serialNumber, name: 'Warehouse ' + m.serialNumber })),
-    agv:       (rawPool.agv       || []).map(m => ({ id: m.serialNumber, name: 'AGV '       + m.serialNumber })),
-    assembly:  (rawPool.assembly  || []).map(m => ({ id: m.serialNumber, name: 'Assembly '  + m.serialNumber })),
+    warehouse: (rawPool.warehouse || []).map(m => ({ id: m.serialNo || m.serialNumber, name: 'Warehouse ' + (m.serialNo || m.serialNumber) })),
+    agv:       (rawPool.agv       || []).map(m => ({ id: m.serialNo || m.serialNumber, name: 'AGV '       + (m.serialNo || m.serialNumber) })),
+    assembly:  (rawPool.assembly  || []).map(m => ({ id: m.serialNo || m.serialNumber, name: 'Assembly '  + (m.serialNo || m.serialNumber) })),
   };
 
   const [EMPS, setEmps] = React.useState([]);

@@ -178,3 +178,8 @@ Interface methods declare `throws Exception`. No custom exception classes — us
 | Warehouse emulators (1–6) | 8087–8092 |
 | Assembly station emulators (1–5) | MQTT only (no exposed port) |
 | PostgreSQL | 5432 (`skateboardas`/`skateboardas`) |
+
+
+Resume this session with:
+claude --resume b3540f81-06e1-455d-be44-004f91bd078b
+

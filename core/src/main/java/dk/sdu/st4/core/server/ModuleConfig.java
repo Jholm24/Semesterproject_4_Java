@@ -15,6 +15,7 @@ public class ModuleConfig {
     public IAgvRegistry agvRegistry() {
         IAgvRegistry registry = ServiceLoader.load(IAgvRegistry.class).findFirst().orElseThrow();
         registry.loadFromDb();
+        for (int i = 0; i < 20; i++) registry.connectNext();
         return registry;
     }
 
@@ -29,6 +30,7 @@ public class ModuleConfig {
     public IAssemblyRegistry assemblyRegistry() throws Exception {
         IAssemblyRegistry registry = ServiceLoader.load(IAssemblyRegistry.class).findFirst().orElseThrow();
         registry.loadFromDb();
+        for (int i = 0; i < 20; i++) registry.connectNext();
         return registry;
     }
 }

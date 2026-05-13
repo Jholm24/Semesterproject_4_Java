@@ -6,6 +6,9 @@ import dk.sdu.st4.common.services.IAgvRegistry;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Map;
@@ -21,11 +24,14 @@ public class AgvRegistry implements IAgvRegistry {
 
     @Override
     public void loadFromDb() {
-        String sql = "SELECT serial_no FROM machines WHERE type = 'AGV'";
+        String sql = "SELECT DISTINCT m.serial_no FROM machines m " +
+                     "INNER JOIN line_machines lm ON m.serial_no = lm.serial_no " +
+                     "WHERE m.type = 'AGV'";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                pending.add(rs.getString("serial_no"));
+                String sn = rs.getString("serial_no");
+                if (!services.containsKey(sn)) pending.add(sn);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to load AGVs from DB", e);
@@ -36,12 +42,17 @@ public class AgvRegistry implements IAgvRegistry {
     public void connectNext() {
         String sn = pending.poll();
         if (sn == null) return;
+        connect(sn);
+    }
 
+    @Override
+    public void connect(String sn) {
+        if (services.containsKey(sn)) return;
         String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql)) {
             ps.setString(1, sn);
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) throw new IllegalStateException("AGV " + sn + " not found in DB");
+                if (!rs.next()) { System.err.println("[AgvRegistry] " + sn + " not found in DB"); return; }
                 AgvConnect connect = new AgvConnect(rs.getString("base_url"));
                 connect.connectMachine(sn);
                 services.put(sn, connect.getModel().client);
@@ -50,6 +61,37 @@ public class AgvRegistry implements IAgvRegistry {
         } catch (Exception e) {
             System.err.println("[AgvRegistry] Failed to connect " + sn + ": " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<Map<String, Object>> getMachinesStatus() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, IAgv> e : services.entrySet()) {
+            String sn = e.getKey();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("serialNo", sn);
+            m.put("poolStatus", active.contains(sn) ? "active" : "idle");
+            try {
+                var status = e.getValue().getStatus();
+                m.put("agvState", status.getState() != null ? status.getState().name() : "Unknown");
+                m.put("battery",  status.getBattery());
+                m.put("program",  status.getProgramName() != null ? status.getProgramName() : "");
+            } catch (Exception ex) {
+                m.put("agvState", "Unknown");
+                m.put("battery",  null);
+                m.put("program",  "");
+            }
+            result.add(m);
+        }
+        return result;
+    }
+
+    @Override
+    public void disconnect(String sn) {
+        pending.remove(sn);
+        available.remove(sn);
+        active.remove(sn);
+        services.remove(sn);
     }
 
     @Override

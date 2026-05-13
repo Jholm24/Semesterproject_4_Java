@@ -36,45 +36,49 @@ const MACHINE_TYPES = {
 // ── API response → UI machine object converters ───────────────────────────────
 
 function toAgvMachine(m) {
+  const sn = m.serialNo || m.serialNumber;
   const stateLabels = { Idle: 'Idle', Executing: 'Running', Charging: 'Charging' };
   return {
-    id: m.serialNumber,
+    id: sn,
     type: 'agv',
-    name: 'AGV ' + m.serialNumber,
+    name: 'AGV ' + sn,
     status: m.poolStatus === 'active' ? 'active' : 'idle',
     stateLabel: stateLabels[m.agvState] || (m.agvState || '—'),
     battery: m.battery,
-    serial: m.serialNumber,
+    serial: sn,
     _program: m.program || null,
   };
 }
 
 function toWarehouseMachine(m) {
+  const sn = m.serialNo || m.serialNumber;
   const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
   return {
-    id: m.serialNumber,
+    id: sn,
     type: 'warehouse',
-    name: 'Warehouse ' + m.serialNumber,
+    name: 'Warehouse ' + sn,
     status: m.poolStatus === 'active' ? 'active' : 'idle',
     stateLabel: stateLabels[m.warehouseState] || '—',
     warehouseState: m.warehouseState,
-    serial: m.serialNumber,
+    serial: sn,
   };
 }
 
 function toAssemblyMachine(m) {
+  const sn = m.serialNo || m.serialNumber;
   const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
+  const isActive = m.poolStatus === 'active';
   return {
-    id: m.serialNumber,
+    id: sn,
     type: 'assembly',
-    name: 'Assembly ' + m.serialNumber,
-    status: m.poolStatus === 'active' ? 'active' : 'idle',
-    stateLabel: stateLabels[m.state] || '—',
+    name: 'Assembly ' + sn,
+    status: isActive ? 'active' : 'idle',
+    stateLabel: isActive ? (stateLabels[m.state] || '—') : 'Idle',
     state: m.state,
     healthy: m.healthy,
     operationId: m.operationId,
     lastOperationId: m.lastOperationId,
-    serial: m.serialNumber,
+    serial: sn,
   };
 }
 
@@ -155,17 +159,6 @@ function ManagerDashboard({ nav }) {
 
   const machines = (machineIds || []).map(id => poolIndex[id]).filter(Boolean);
 
-  const occupiedIds = useMemo(() => {
-    const s = new Set();
-    dbLines.forEach(l => (l.machines || []).forEach(id => s.add(id)));
-    return s;
-  }, [dbLines]);
-
-  const availableByType = {
-    warehouse: (machinePool.warehouse || []).filter(m => !occupiedIds.has(m.id)),
-    agv:       (machinePool.agv       || []).filter(m => !occupiedIds.has(m.id)),
-    assembly:  (machinePool.assembly  || []).filter(m => !occupiedIds.has(m.id)),
-  };
 
   const patchLine = (patch) => setByLine(b => {
     const base = b[currentLine.id] || { status: 'standby', cycles: 0, warnings: 0, success: 0, machines: [], operators: [], log: [] };
@@ -224,12 +217,32 @@ function ManagerDashboard({ nav }) {
     return () => { active = false; clearInterval(id); };
   }, [currentLine.id]);
 
-  const addMachineById = (poolId) => {
+  const addMachineById = async (poolId) => {
     if (!poolId) return;
     if (machineIds.includes(poolId)) return;
-    setMachines(ids => [...ids, poolId]);
+    const next = [...machineIds, poolId];
+    setMachines(next);
+    try {
+      await fetch(API_BASE + '/api/lines', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentLine.id, title: currentLine.name,
+          product: currentLine.product || '—', machines: next, operators: L.operators || [] }),
+      });
+    } catch {}
   };
-  const removeMachine = (id) => setMachines(ids => ids.filter(x => x !== id));
+  const removeMachine = async (id) => {
+    const next = machineIds.filter(x => x !== id);
+    setMachines(next);
+    try {
+      await fetch(API_BASE + '/api/lines', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentLine.id, title: currentLine.name,
+          product: currentLine.product || '—', machines: next, operators: L.operators || [] }),
+      });
+    } catch {}
+  };
 
   const doControl = async (cmd) => {
     const now = new Date();
@@ -249,14 +262,28 @@ function ManagerDashboard({ nav }) {
 
   const grouped = { warehouse: [], agv: [], assembly: [] };
   machines.forEach(m => grouped[m.type] && grouped[m.type].push(m));
+
+  // Only offer re-adding machines that are assigned to THIS line but not yet showing
+  const assignedSet = new Set(machineIds || []);
+  const availableByType = {
+    warehouse: (machinePool.warehouse || []).filter(m => assignedSet.has(m.id) && !grouped.warehouse.some(g => g.id === m.id)),
+    agv:       (machinePool.agv       || []).filter(m => assignedSet.has(m.id) && !grouped.agv.some(g => g.id === m.id)),
+    assembly:  (machinePool.assembly  || []).filter(m => assignedSet.has(m.id) && !grouped.assembly.some(g => g.id === m.id)),
+  };
+  const assignedByType = {
+    warehouse: machineIds.filter(id => poolIndex[id]?.type === 'warehouse').length,
+    agv:       machineIds.filter(id => poolIndex[id]?.type === 'agv').length,
+    assembly:  machineIds.filter(id => poolIndex[id]?.type === 'assembly').length,
+  };
+
   const [openMachine, setOpenMachine] = useState(null);
   const liveOpenMachine = openMachine ? machines.find(m => m.id === openMachine.id) : null;
 
   return (
     <main className="dash">
       <div className="dash-main">
-        <StatsBar cycles={cycles} success={success} warnings={warnings} lineStatus={lineStatus} currentLine={currentLine} backendOnline={backendOnline} />
-        <ComponentManager grouped={grouped} available={availableByType} onAdd={addMachineById} machinePool={machinePool} />
+        <StatsBar cycles={cycles} success={success} warnings={warnings} lineStatus={lineStatus} currentLine={currentLine} backendOnline={backendOnline} machinePool={machinePool} />
+        <ComponentManager grouped={grouped} available={availableByType} onAdd={addMachineById} assignedByType={assignedByType} />
         <MachineGrid grouped={grouped} removeMachine={removeMachine} lineStatus={lineStatus} onOpen={(m) => setOpenMachine(m)} />
         <EventLog log={log} />
       </div>
@@ -283,8 +310,11 @@ function ManagerDashboard({ nav }) {
   );
 }
 
-function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendOnline }) {
+function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendOnline, machinePool }) {
   const statusLabels = { standby:'Standby', running:'Running', paused:'Paused', stopped:'Stopped', alarm:'ALARM', idle:'Idle' };
+  const allMachines = Object.values(machinePool || {}).flat();
+  const activeMachines = allMachines.filter(m => m.status === 'active').length;
+  const totalMachines = allMachines.length;
   return (
     <section className="stats-bar">
       <div className="stats-head">
@@ -309,7 +339,10 @@ function StatsBar({ cycles, success, warnings, lineStatus, currentLine, backendO
         <Stat icon="pulse" label="Total Cycles" value={cycles} />
         <Stat icon="check" label="Success Rate" value={(success || 0).toFixed(1)+'%'} sub="last 24h" tone="ok"/>
         <Stat icon="alert" label="Warnings" value={warnings} tone={warnings>0?'warn':'ok'}/>
-        <Stat icon="clock" label="Avg. Cycle Time" value="42.6s" sub="target: <45s" tone="ok"/>
+        <Stat icon="nodes" label="Active Machines"
+          value={totalMachines === 0 ? '—' : `${activeMachines} / ${totalMachines}`}
+          sub={activeMachines > 0 ? 'pool in use' : 'all idle'}
+          tone={activeMachines > 0 ? 'ok' : ''}/>
       </div>
     </section>
   );
@@ -321,6 +354,7 @@ function Stat({ icon, label, value, sub, tone }) {
     check: <path d="M3 8 L7 12 L13 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none"/>,
     alert: <><path d="M8 3 V9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="8" cy="12" r="1" fill="currentColor"/></>,
     clock: <><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M8 5 V8 L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>,
+    nodes: <><circle cx="8" cy="3.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/><circle cx="3" cy="12.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/><circle cx="13" cy="12.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/><path d="M8 5.3 L3 10.7 M8 5.3 L13 10.7" stroke="currentColor" strokeWidth="1.3"/></>,
   };
   return (
     <div className={`stat stat-${tone||''}`}>
@@ -336,7 +370,7 @@ function Stat({ icon, label, value, sub, tone }) {
   );
 }
 
-function ComponentManager({ grouped, available, onAdd, machinePool }) {
+function ComponentManager({ grouped, available, onAdd, assignedByType }) {
   const [openType, setOpenType] = React.useState(null);
   const rootRef = React.useRef(null);
   React.useEffect(() => {
@@ -360,32 +394,32 @@ function ComponentManager({ grouped, available, onAdd, machinePool }) {
       <div className="kompo-row">
         {Object.values(MACHINE_TYPES).map(t => {
           const avail = available[t.id] || [];
-          const total = (machinePool[t.id] || []).length;
+          const total = assignedByType ? (assignedByType[t.id] || 0) : 0;
           const isOpen = openType === t.id;
           return (
             <div key={t.id} className={'kompo-card' + (isOpen ? ' kompo-open' : '')} style={{'--c': t.accent, '--cs': t.accentSoft}}>
               <div className="kompo-ic">{t.icon}</div>
               <div className="kompo-meta">
                 <div className="kompo-label">{t.label}</div>
-                <div className="kompo-sub mono">{grouped[t.id].length} on line · {avail.length}/{total} available</div>
+                <div className="kompo-sub mono">{grouped[t.id].length} / {total} assigned</div>
               </div>
               <button
                 className="kompo-add"
                 onClick={() => setOpenType(o => o === t.id ? null : t.id)}
                 disabled={avail.length === 0}
-                title={total === 0 ? 'No machines in pool' : avail.length === 0 ? 'All units occupied by other lines' : 'Add available unit'}
+                title={total === 0 ? 'No machines assigned — configure in Task Builder' : avail.length === 0 ? 'All assigned machines are in use' : 'Restore offline machine to line'}
               >
-                <span>{avail.length > 0 ? '+' : '—'}</span> {total > 0 && avail.length === 0 ? 'Full' : avail.length > 0 ? 'Add' : '—'}
+                <span>{avail.length > 0 ? '+' : '·'}</span> {total === 0 ? 'None' : avail.length === 0 ? 'In Use' : 'Restore'}
                 <svg className="kompo-caret" width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 3 L4.5 6 L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
               {isOpen && (
                 <div className="kompo-pop" role="menu">
                   <div className="kompo-pop-head">
-                    <span className="mono kompo-pop-k">AVAILABLE {t.label.toUpperCase()} UNITS</span>
-                    <span className="mono kompo-pop-count">{avail.length} / {total}</span>
+                    <span className="mono kompo-pop-k">RESTORE {t.label.toUpperCase()} UNIT</span>
+                    <span className="mono kompo-pop-count">{avail.length} offline</span>
                   </div>
                   {avail.length === 0 ? (
-                    <div className="kompo-pop-empty mono">{total === 0 ? 'No machines loaded from pool.' : 'All units are currently occupied by other production lines.'}</div>
+                    <div className="kompo-pop-empty mono">{total === 0 ? 'No machines assigned — configure in Task Builder.' : 'All assigned machines are currently in use.'}</div>
                   ) : (
                     <ul className="kompo-pop-list">
                       {avail.map(u => (
@@ -396,7 +430,7 @@ function ComponentManager({ grouped, available, onAdd, machinePool }) {
                               <span className="kompo-pop-name">{u.name}</span>
                               <span className="mono kompo-pop-meta">{u.serial} · {t.protocol}</span>
                             </span>
-                            <span className="kompo-pop-add mono">+ Add</span>
+                            <span className="kompo-pop-add mono">+ Restore</span>
                           </button>
                         </li>
                       ))}
@@ -445,13 +479,12 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
     onOpen && onOpen();
   };
   return (
-    <article className="mcard mcard-click" onClick={handleCardClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); onOpen && onOpen(); } }}>
+    <article className={`mcard mcard-click${machine.status === 'active' ? ' mcard-active' : ''}`} onClick={handleCardClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); onOpen && onOpen(); } }}>
       <header className="mcard-head">
         <span className="mcard-ic">{t.icon}</span>
         <span className="mcard-name">{machine.name}</span>
         <span className={`mcard-badge mcard-badge-${statusTone}`}>{t.badge}</span>
         <span className={`mcard-status mono mcard-status-${statusTone}`}>{machine.status === 'active' ? 'Active' : 'Idle'}</span>
-        <button className="mcard-x" onClick={onRemove} title="Remove">×</button>
       </header>
 
       {machine.type === 'warehouse' && (
@@ -675,7 +708,6 @@ function MachineDetail({ machine, lineStatus, onClose, onRemove, activity }) {
               <button className="mdetail-btn mdetail-btn-primary">Send Command</button>
               <button className="mdetail-btn">Check Health</button>
               <button className="mdetail-btn">View Logs</button>
-              <button className="mdetail-btn mdetail-btn-danger" onClick={onRemove}>Remove component</button>
             </div>
           </section>
         </div>

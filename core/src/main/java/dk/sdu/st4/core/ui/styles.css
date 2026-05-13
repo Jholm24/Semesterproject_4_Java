@@ -867,3 +867,134 @@ a { color: inherit; }
   margin: 0;
   padding: 18px 22px;
 }
+
+/* ==========================================================================
+   ACTIVE MACHINE CARD
+   ========================================================================== */
+.mcard-active {
+  border-color: var(--c);
+  animation: mcardActivePulse 2s ease-in-out infinite;
+}
+@keyframes mcardActivePulse {
+  0%, 100% { box-shadow: 0 0 0 1.5px var(--c), 0 3px 10px oklch(0.4 0.15 145 / 0.08); }
+  50%      { box-shadow: 0 0 0 3px var(--c),   0 4px 16px oklch(0.4 0.15 145 / 0.16); }
+}
+
+/* ==========================================================================
+   TASK BUILDER — CREATE LINE SETUP PANEL
+   ========================================================================== */
+.tb-setup {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tb-setup-info {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+}
+.tb-setup-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tb-setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tb-setup-k {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.tb-setup-machines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tb-setup-pool {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.tb-setup-type {
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--c);
+  border-radius: var(--r);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tb-setup-type-head {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--c);
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
+}
+.tb-setup-machine {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.tb-setup-machine:hover:not(:disabled) { background: var(--paper-2); border-color: var(--line); }
+.tb-setup-machine.picked { background: var(--cs); border-color: var(--c); }
+.tb-setup-machine.occupied { cursor: not-allowed; opacity: 0.45; }
+.tb-setup-check {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  background: var(--paper);
+  flex-shrink: 0;
+}
+.tb-setup-machine.picked .tb-setup-check { background: var(--c); border-color: var(--c); }
+.tb-setup-occ {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  margin-left: auto;
+}
+.tb-setup-empty {
+  font-size: 11px;
+  color: var(--ink-4);
+  padding: 8px 4px;
+  letter-spacing: 0.06em;
+}
+.tb-setup-hint {
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .tb-setup-info { grid-template-columns: 1fr; }
+  .tb-setup-pool { grid-template-columns: repeat(2, 1fr); }
+}

@@ -6,6 +6,9 @@ import dk.sdu.st4.common.services.IWarehouseRegistry;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,7 +19,9 @@ public class WarehouseRegistry implements IWarehouseRegistry {
 
     @Override
     public void loadFromDb() {
-        String sql = "SELECT serial_no FROM machines WHERE type = 'WAREHOUSE'";
+        String sql = "SELECT DISTINCT m.serial_no FROM machines m " +
+                     "INNER JOIN line_machines lm ON m.serial_no = lm.serial_no " +
+                     "WHERE m.type = 'WAREHOUSE'";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -50,6 +55,24 @@ public class WarehouseRegistry implements IWarehouseRegistry {
         } catch (Exception e) {
             throw new RuntimeException("Failed to connect warehouse " + serialNumber, e);
         }
+    }
+
+    @Override
+    public List<Map<String, Object>> getMachinesStatus() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, IWarehouse> e : bySerialNo.entrySet()) {
+            String sn = e.getKey();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("serialNo",  sn);
+            m.put("poolStatus", "idle");
+            try {
+                m.put("warehouseState", e.getValue().GetState(""));
+            } catch (Exception ex) {
+                m.put("warehouseState", 0);
+            }
+            result.add(m);
+        }
+        return result;
     }
 
     @Override
