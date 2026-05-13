@@ -7,6 +7,7 @@ import dk.sdu.st4.common.services.IWarehouseRegistry;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class Main {
 
@@ -18,9 +19,12 @@ public class Main {
         AnnotationConfigApplicationContext ctx =
                 new AnnotationConfigApplicationContext(ModuleConfig.class);
 
-        IAgvRegistry       agvRegistry       = ctx.getBean(IAgvRegistry.class);
-        IWarehouseRegistry warehouseRegistry = ctx.getBean(IWarehouseRegistry.class);
-        IAssemblyRegistry  assemblyRegistry  = ctx.getBean(IAssemblyRegistry.class);
+        @SuppressWarnings("unchecked")
+        Optional<IAgvRegistry>       agvRegistry       = (Optional<IAgvRegistry>)       ctx.getBean("agvRegistry");
+        @SuppressWarnings("unchecked")
+        Optional<IWarehouseRegistry> warehouseRegistry = (Optional<IWarehouseRegistry>) ctx.getBean("warehouseRegistry");
+        @SuppressWarnings("unchecked")
+        Optional<IAssemblyRegistry>  assemblyRegistry  = (Optional<IAssemblyRegistry>)  ctx.getBean("assemblyRegistry");
 
         String lineId = DbLineRepository.getAllLines().stream()
                 .map(l -> (String) l.get("id"))
@@ -36,6 +40,10 @@ public class Main {
         System.out.println("  Skateboard Productions");
         System.out.println("  http://localhost:" + port);
         System.out.println("  UI root : " + uiRoot);
+        System.out.println("  Modules :");
+        System.out.println("    AGV       : " + (agvRegistry.isPresent()       ? "loaded" : "MISSING"));
+        System.out.println("    Warehouse : " + (warehouseRegistry.isPresent() ? "loaded" : "MISSING"));
+        System.out.println("    Assembly  : " + (assemblyRegistry.isPresent()  ? "loaded" : "MISSING"));
         System.out.println("  Requires: docker compose up -d");
         System.out.println("=================================================");
 

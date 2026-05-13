@@ -38,6 +38,7 @@ public class ApiServer {
         server.createContext("/api/status",    ex -> handle(ex, this::handleStatus));
         server.createContext("/api/events",    ex -> handle(ex, this::handleEvents));
         server.createContext("/api/control",   ex -> handle(ex, this::handleControl));
+        server.createContext("/api/health",    ex -> handle(ex, this::handleHealth));
         server.createContext("/api/machines",  ex -> handle(ex, this::handleMachines));
         server.createContext("/api/catalog",   ex -> handle(ex, this::handleCatalog));
         server.createContext("/api/lines",     ex -> handle(ex, this::handleLines));
@@ -106,6 +107,24 @@ public class ApiServer {
         if (isPreflight(ex)) return;
         if (!"GET".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
         sendJson(ex, 200, orchestrator.machinesJson());
+    }
+
+    private void handleHealth(HttpExchange ex) throws IOException {
+        if (isPreflight(ex)) return;
+        if (!"GET".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+
+        StringBuilder missing = new StringBuilder("[");
+        boolean first = true;
+        for (String m : orchestrator.missingModules()) {
+            if (!first) missing.append(",");
+            missing.append("\"").append(m).append("\"");
+            first = false;
+        }
+        missing.append("]");
+
+        sendJson(ex, 200, String.format(
+            "{\"ready\":%b,\"missing\":%s}",
+            orchestrator.isReady(), missing));
     }
 
     private void handleCatalog(HttpExchange ex) throws IOException {

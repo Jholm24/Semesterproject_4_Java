@@ -6,31 +6,46 @@ import dk.sdu.st4.common.services.IWarehouseRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 @Configuration
 public class ModuleConfig {
 
     @Bean
-    public IAgvRegistry agvRegistry() {
-        IAgvRegistry registry = ServiceLoader.load(IAgvRegistry.class).findFirst().orElseThrow();
-        registry.loadFromDb();
-        for (int i = 0; i < 20; i++) registry.connectNext();
-        return registry;
+    public Optional<IAgvRegistry> agvRegistry() {
+        Optional<IAgvRegistry> reg = ServiceLoader.load(IAgvRegistry.class).findFirst();
+        if (reg.isPresent()) {
+            IAgvRegistry r = reg.get();
+            r.loadFromDb();
+            for (int i = 0; i < 20; i++) r.connectNext();
+        } else {
+            System.out.println("[ModuleConfig] IAgvRegistry ikke fundet — AGV-modul mangler i mods-mvn");
+        }
+        return reg;
     }
 
     @Bean
-    public IWarehouseRegistry warehouseRegistry() {
-        IWarehouseRegistry registry = ServiceLoader.load(IWarehouseRegistry.class).findFirst().orElseThrow();
-        registry.loadFromDb();
-        return registry;
+    public Optional<IWarehouseRegistry> warehouseRegistry() {
+        Optional<IWarehouseRegistry> reg = ServiceLoader.load(IWarehouseRegistry.class).findFirst();
+        if (reg.isPresent()) {
+            reg.get().loadFromDb();
+        } else {
+            System.out.println("[ModuleConfig] IWarehouseRegistry ikke fundet — Warehouse-modul mangler i mods-mvn");
+        }
+        return reg;
     }
 
     @Bean
-    public IAssemblyRegistry assemblyRegistry() throws Exception {
-        IAssemblyRegistry registry = ServiceLoader.load(IAssemblyRegistry.class).findFirst().orElseThrow();
-        registry.loadFromDb();
-        for (int i = 0; i < 20; i++) registry.connectNext();
-        return registry;
+    public Optional<IAssemblyRegistry> assemblyRegistry() throws Exception {
+        Optional<IAssemblyRegistry> reg = ServiceLoader.load(IAssemblyRegistry.class).findFirst();
+        if (reg.isPresent()) {
+            IAssemblyRegistry r = reg.get();
+            r.loadFromDb();
+            for (int i = 0; i < 20; i++) r.connectNext();
+        } else {
+            System.out.println("[ModuleConfig] IAssemblyRegistry ikke fundet — Assembly-modul mangler i mods-mvn");
+        }
+        return reg;
     }
 }

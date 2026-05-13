@@ -88,11 +88,11 @@ public class ProductionOrchestrator {
 
     // ── Tilstand ─────────────────────────────────────────────────────────────
 
-    private final IAgvRegistry       agvRegistry;
-    private final IWarehouseRegistry warehouseRegistry;
-    private final IAssemblyRegistry  assemblyRegistry;
-    private final String             lineId;
-    private final List<StepSpec>     sequence;
+    private final Optional<IAgvRegistry>       agvRegistry;
+    private final Optional<IWarehouseRegistry> warehouseRegistry;
+    private final Optional<IAssemblyRegistry>  assemblyRegistry;
+    private final String                       lineId;
+    private final List<StepSpec>               sequence;
 
     private volatile String  lineStatus     = "standby";
     private volatile boolean stopRequested  = false;
@@ -106,16 +106,16 @@ public class ProductionOrchestrator {
 
     // ── Constructors ─────────────────────────────────────────────────────────
 
-    public ProductionOrchestrator(IAgvRegistry agvRegistry,
-                                  IWarehouseRegistry warehouseRegistry,
-                                  IAssemblyRegistry assemblyRegistry,
+    public ProductionOrchestrator(Optional<IAgvRegistry> agvRegistry,
+                                  Optional<IWarehouseRegistry> warehouseRegistry,
+                                  Optional<IAssemblyRegistry> assemblyRegistry,
                                   String lineId) {
         this(agvRegistry, warehouseRegistry, assemblyRegistry, lineId, DEFAULT_SEQUENCE);
     }
 
-    public ProductionOrchestrator(IAgvRegistry agvRegistry,
-                                  IWarehouseRegistry warehouseRegistry,
-                                  IAssemblyRegistry assemblyRegistry,
+    public ProductionOrchestrator(Optional<IAgvRegistry> agvRegistry,
+                                  Optional<IWarehouseRegistry> warehouseRegistry,
+                                  Optional<IAssemblyRegistry> assemblyRegistry,
                                   String lineId,
                                   List<StepSpec> sequence) {
         this.agvRegistry       = agvRegistry;
@@ -169,9 +169,18 @@ public class ProductionOrchestrator {
         if (type == null) return;
         try {
             switch (type) {
-                case "AGV"              -> agvRegistry.connect(sn);
-                case "WAREHOUSE"        -> warehouseRegistry.connect(sn);
-                case "ASSEMBLY_STATION" -> assemblyRegistry.connect(sn);
+                case "AGV"              -> {
+                    if (agvRegistry.isPresent()) agvRegistry.get().connect(sn);
+                    else log("warn", "Springer AGV-tilslutning over (" + sn + ") — modul mangler");
+                }
+                case "WAREHOUSE"        -> {
+                    if (warehouseRegistry.isPresent()) warehouseRegistry.get().connect(sn);
+                    else log("warn", "Springer Warehouse-tilslutning over (" + sn + ") — modul mangler");
+                }
+                case "ASSEMBLY_STATION" -> {
+                    if (assemblyRegistry.isPresent()) assemblyRegistry.get().connect(sn);
+                    else log("warn", "Springer Assembly-tilslutning over (" + sn + ") — modul mangler");
+                }
             }
         } catch (Exception e) {
             System.err.println("[Orchestrator] Kunne ikke tilslutte " + sn + ": " + e.getMessage());
@@ -182,9 +191,9 @@ public class ProductionOrchestrator {
         String type = getMachineType(sn);
         if (type == null) return;
         switch (type) {
-            case "AGV"              -> agvRegistry.disconnect(sn);
-            case "WAREHOUSE"        -> warehouseRegistry.disconnect(sn);
-            case "ASSEMBLY_STATION" -> assemblyRegistry.disconnect(sn);
+            case "AGV"              -> agvRegistry.ifPresent(r -> r.disconnect(sn));
+            case "WAREHOUSE"        -> warehouseRegistry.ifPresent(r -> r.disconnect(sn));
+            case "ASSEMBLY_STATION" -> assemblyRegistry.ifPresent(r -> r.disconnect(sn));
         }
     }
 
@@ -199,6 +208,16 @@ public class ProductionOrchestrator {
 
     public synchronized void start() {
         if ("running".equals(lineStatus)) return;
+
+        List<String> missing = new ArrayList<>();
+        if (agvRegistry.isEmpty())       missing.add("AGV");
+        if (warehouseRegistry.isEmpty()) missing.add("Warehouse");
+        if (assemblyRegistry.isEmpty())  missing.add("Assembly");
+        if (!missing.isEmpty()) {
+            log("err", "Kan ikke starte cyklus — manglende moduler i mods-mvn: " + missing);
+            return;
+        }
+
         lineStatus     = "running";
         stopRequested  = false;
         pauseRequested = false;
@@ -206,6 +225,20 @@ public class ProductionOrchestrator {
         t.setDaemon(true);
         t.start();
         log("ok", "Linje startet — " + sequence.size() + " trin i sekvens");
+    }
+
+    public boolean isReady() {
+        return agvRegistry.isPresent()
+            && warehouseRegistry.isPresent()
+            && assemblyRegistry.isPresent();
+    }
+
+    public List<String> missingModules() {
+        List<String> missing = new ArrayList<>();
+        if (agvRegistry.isEmpty())       missing.add("AGV");
+        if (warehouseRegistry.isEmpty()) missing.add("Warehouse");
+        if (assemblyRegistry.isEmpty())  missing.add("Assembly");
+        return missing;
     }
 
     public synchronized void pause() {
@@ -256,38 +289,44 @@ public class ProductionOrchestrator {
         StringBuilder asArr  = new StringBuilder("[");
         boolean firstAgv = true, firstWh = true, firstAs = true;
 
-        for (Map<String, Object> m : agvRegistry.getMachinesStatus()) {
-            String battery = m.get("battery") != null ? m.get("battery").toString() : "null";
-            String entry = String.format(
-                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"agvState\":\"%s\",\"battery\":%s,\"program\":\"%s\"}",
-                esc(str(m, "serialNo")), str(m, "poolStatus"), str(m, "agvState"),
-                battery, esc(str(m, "program")));
-            if (!firstAgv) agvArr.append(",");
-            agvArr.append(entry);
-            firstAgv = false;
+        if (agvRegistry.isPresent()) {
+            for (Map<String, Object> m : agvRegistry.get().getMachinesStatus()) {
+                String battery = m.get("battery") != null ? m.get("battery").toString() : "null";
+                String entry = String.format(
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"agvState\":\"%s\",\"battery\":%s,\"program\":\"%s\"}",
+                    esc(str(m, "serialNo")), str(m, "poolStatus"), str(m, "agvState"),
+                    battery, esc(str(m, "program")));
+                if (!firstAgv) agvArr.append(",");
+                agvArr.append(entry);
+                firstAgv = false;
+            }
         }
 
-        for (Map<String, Object> m : warehouseRegistry.getMachinesStatus()) {
-            int state = m.get("warehouseState") instanceof Number n ? n.intValue() : 0;
-            String entry = String.format(
-                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"warehouseState\":%d}",
-                esc(str(m, "serialNo")), str(m, "poolStatus"), state);
-            if (!firstWh) whArr.append(",");
-            whArr.append(entry);
-            firstWh = false;
+        if (warehouseRegistry.isPresent()) {
+            for (Map<String, Object> m : warehouseRegistry.get().getMachinesStatus()) {
+                int state = m.get("warehouseState") instanceof Number n ? n.intValue() : 0;
+                String entry = String.format(
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"warehouseState\":%d}",
+                    esc(str(m, "serialNo")), str(m, "poolStatus"), state);
+                if (!firstWh) whArr.append(",");
+                whArr.append(entry);
+                firstWh = false;
+            }
         }
 
-        for (Map<String, Object> m : assemblyRegistry.getMachinesStatus()) {
-            int     state     = m.get("state")           instanceof Number n ? n.intValue()  : 0;
-            String  healthy   = m.get("healthy")         instanceof Boolean b ? b.toString() : "null";
-            int     opId      = m.get("operationId")     instanceof Number n ? n.intValue()  : -1;
-            int     lastOpId  = m.get("lastOperationId") instanceof Number n ? n.intValue()  : -1;
-            String entry = String.format(
-                "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"state\":%d,\"healthy\":%s,\"operationId\":%d,\"lastOperationId\":%d}",
-                esc(str(m, "serialNo")), str(m, "poolStatus"), state, healthy, opId, lastOpId);
-            if (!firstAs) asArr.append(",");
-            asArr.append(entry);
-            firstAs = false;
+        if (assemblyRegistry.isPresent()) {
+            for (Map<String, Object> m : assemblyRegistry.get().getMachinesStatus()) {
+                int     state     = m.get("state")           instanceof Number n ? n.intValue()  : 0;
+                String  healthy   = m.get("healthy")         instanceof Boolean b ? b.toString() : "null";
+                int     opId      = m.get("operationId")     instanceof Number n ? n.intValue()  : -1;
+                int     lastOpId  = m.get("lastOperationId") instanceof Number n ? n.intValue()  : -1;
+                String entry = String.format(
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"state\":%d,\"healthy\":%s,\"operationId\":%d,\"lastOperationId\":%d}",
+                    esc(str(m, "serialNo")), str(m, "poolStatus"), state, healthy, opId, lastOpId);
+                if (!firstAs) asArr.append(",");
+                asArr.append(entry);
+                firstAs = false;
+            }
         }
 
         return String.format("{\"agv\":%s,\"warehouse\":%s,\"assembly\":%s}",
@@ -317,12 +356,16 @@ public class ProductionOrchestrator {
     }
 
     private void runOneCycle() throws Exception {
-        IAgv      agv      = agvRegistry.acquire();
-        IAssembly assembly = assemblyRegistry.acquire();
+        // start() har allerede verificeret at alle tre registries er til stede
+        IAgvRegistry      agvReg = agvRegistry.get();
+        IAssemblyRegistry asReg  = assemblyRegistry.get();
+
+        IAgv      agv      = agvReg.acquire();
+        IAssembly assembly = asReg.acquire();
 
         if (agv == null || assembly == null) {
-            if (agv      != null) agvRegistry.release(agv);
-            if (assembly != null) assemblyRegistry.release(assembly);
+            if (agv      != null) agvReg.release(agv);
+            if (assembly != null) asReg.release(assembly);
             throw new Exception("Ingen maskiner tilgængelige");
         }
 
@@ -335,8 +378,8 @@ public class ProductionOrchestrator {
             if (lineId != null) DbLineRepository.recordCycleComplete(lineId);
             log("ok", "Cyklus " + cycleCount + " fuldført");
         } finally {
-            agvRegistry.release(agv);
-            assemblyRegistry.release(assembly);
+            agvReg.release(agv);
+            asReg.release(assembly);
         }
     }
 
@@ -452,9 +495,11 @@ public class ProductionOrchestrator {
     // ── Warehouse-opslag ─────────────────────────────────────────────────────
 
     private IWarehouse resolveWarehouse(String variant) throws Exception {
+        IWarehouseRegistry wr = warehouseRegistry.orElseThrow(
+            () -> new Exception("Warehouse-modul mangler i mods-mvn"));
         IWarehouse wh = (variant == null || variant.isBlank())
-            ? warehouseRegistry.getWarehouse("")
-            : warehouseRegistry.getWarehouseByVariant(variant);
+            ? wr.getWarehouse("")
+            : wr.getWarehouseByVariant(variant);
         if (wh == null) throw new Exception("Intet warehouse fundet for variant: '" + variant + "'");
         return wh;
     }
