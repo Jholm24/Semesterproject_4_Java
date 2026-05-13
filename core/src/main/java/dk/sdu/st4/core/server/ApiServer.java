@@ -3,7 +3,6 @@ package dk.sdu.st4.core.server;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import dk.sdu.st4.app.ProductionOrchestrator;
 import dk.sdu.st4.common.db.DbLineRepository;
 
 import java.io.IOException;

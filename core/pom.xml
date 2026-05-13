@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>core</artifactId>
+    <packaging>jar</packaging>
     <name>ST4 Core — Domain Models, Interfaces &amp; Exceptions</name>
 
     <dependencies>
@@ -63,7 +64,13 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
-                    <mainClass>dk.sdu.st4.core.server.Main</mainClass>
+                    <executable>${java.home}/bin/java</executable>
+                    <workingDirectory>${project.basedir}/..</workingDirectory>
+                    <arguments>
+                        <argument>--module-path=mods</argument>
+                        <argument>--add-modules=dk.sdu.st4.agv,dk.sdu.st4.warehouse,dk.sdu.st4.assemblystation</argument>
+                        <argument>--module=dk.sdu.st4.core/dk.sdu.st4.core.server.Main</argument>
+                    </arguments>
                 </configuration>
             </plugin>
         </plugins>

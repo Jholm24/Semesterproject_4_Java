@@ -310,6 +310,27 @@ public class DbLineRepository {
         }
     }
 
+    // ── Machines ─────────────────────────────────────────────────────────────
+
+    public static List<Map<String, Object>> getAllMachines() {
+        String sql = "SELECT serial_no, type, variant, base_url FROM machines ORDER BY type, serial_no";
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (PreparedStatement ps = conn().prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("serialNo", rs.getString("serial_no"));
+                m.put("type",     rs.getString("type"));
+                m.put("variant",  rs.getString("variant"));
+                m.put("baseUrl",  rs.getString("base_url"));
+                result.add(m);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get machines", e);
+        }
+        return result;
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────────
 
     private static Connection conn() {

@@ -11,7 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class WarehouseRegistry implements IWarehouseRegistry {
 
-    private final Map<String, IWarehouse> services = new ConcurrentHashMap<>();
+    private final Map<String, IWarehouse> bySerialNo = new ConcurrentHashMap<>();
+    private final Map<String, IWarehouse> byVariant  = new ConcurrentHashMap<>();
 
     @Override
     public void loadFromDb() {
@@ -30,29 +31,40 @@ public class WarehouseRegistry implements IWarehouseRegistry {
             throw new RuntimeException("Failed to load warehouses from DB", e);
         }
     }
-@Override
+
+    @Override
     public void connect(String serialNumber) {
-        String sql = "SELECT base_url FROM machines WHERE serial_no = ?";
+        String sql = "SELECT base_url, variant FROM machines WHERE serial_no = ?";
         try (PreparedStatement ps = DBConnection.getInstance().getConnection().prepareStatement(sql)) {
             ps.setString(1, serialNumber);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) throw new IllegalStateException("Warehouse " + serialNumber + " not found in DB");
                 String baseUrl = rs.getString("base_url");
+                String variant = rs.getString("variant");
                 WarehouseConnect connect = new WarehouseConnect(baseUrl);
                 connect.connectMachine(serialNumber);
-                services.put(serialNumber, new WarehouseService(connect.getModel()));
+                IWarehouse service = new WarehouseService(connect.getModel());
+                bySerialNo.put(serialNumber, service);
+                if (variant != null && !variant.isBlank()) byVariant.put(variant, service);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to connect warehouse " + serialNumber, e);
         }
     }
+
     @Override
     public void disconnect(String serialNumber) {
-        services.remove(serialNumber);
-    }
-    @Override
-    public IWarehouse getWarehouse(String serialNumber) {
-        return services.get(serialNumber);
+        IWarehouse removed = bySerialNo.remove(serialNumber);
+        if (removed != null) byVariant.values().remove(removed);
     }
 
+    @Override
+    public IWarehouse getWarehouse(String serialNumber) {
+        return bySerialNo.get(serialNumber);
+    }
+
+    @Override
+    public IWarehouse getWarehouseByVariant(String variant) {
+        return byVariant.get(variant);
+    }
 }

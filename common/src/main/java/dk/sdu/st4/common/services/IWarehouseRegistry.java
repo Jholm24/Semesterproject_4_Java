@@ -5,4 +5,5 @@ public interface IWarehouseRegistry {
     void connect(String serialNumber);
     void disconnect(String serialNumber);
     IWarehouse getWarehouse(String serialNumber);
+    IWarehouse getWarehouseByVariant(String variant);
 }

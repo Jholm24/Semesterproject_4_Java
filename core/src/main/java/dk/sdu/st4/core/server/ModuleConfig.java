@@ -26,7 +26,7 @@ public class ModuleConfig {
     }
 
     @Bean
-    public IAssemblyRegistry assemblyRegistry() {
+    public IAssemblyRegistry assemblyRegistry() throws Exception {
         IAssemblyRegistry registry = ServiceLoader.load(IAssemblyRegistry.class).findFirst().orElseThrow();
         registry.loadFromDb();
         return registry;

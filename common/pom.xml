@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>common</artifactId>
+    <packaging>jar</packaging>
     <name>ST4 Common — Configuration &amp; Shared Utilities</name>
 
     <dependencies>
@@ -21,13 +22,6 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-        </dependency>
-
-        <!-- PostgreSQL JDBC driver -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.3</version>
         </dependency>
 
     </dependencies>

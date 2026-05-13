@@ -9,4 +9,5 @@ module dk.sdu.st4.core {
     uses dk.sdu.st4.common.services.IAgvRegistry;
     uses dk.sdu.st4.common.services.IWarehouseRegistry;
     uses dk.sdu.st4.common.services.IAssemblyRegistry;
+    opens dk.sdu.st4.core.server to spring.core;
 }
