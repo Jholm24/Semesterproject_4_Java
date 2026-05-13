@@ -58,12 +58,6 @@
                 <artifactId>assemblystation</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>dk.sdu.st4</groupId>
-                <artifactId>app</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
             <!-- JSON -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -115,6 +109,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
+                        <fork>true</fork>
                         <release>17</release>
                     </configuration>
                 </plugin>
@@ -127,59 +122,98 @@
         </pluginManagement>
 
         <plugins>
-            <!-- Nedarves til alle child-moduler: kopier modulets eget JAR til <root>/mods/ -->
+            <!-- Run from root: mvn exec:exec -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-jar-to-mods</id>
-                        <phase>package</phase>
-                        <goals><goal>run</goal></goals>
-                        <configuration>
-                            <target>
-                                <copy todir="${project.basedir}/../mods"
-                                      failonerror="false">
-                                    <fileset dir="${project.build.directory}"
-                                             includes="${project.build.finalName}.jar"/>
-                                </copy>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Nedarves til alle child-moduler: kopier transitive runtime-deps til <root>/mods/ -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.6.1</version>
-                <executions>
-                    <execution>
-                        <id>copy-deps-to-mods</id>
-                        <phase>package</phase>
-                        <goals><goal>copy-dependencies</goal></goals>
-                        <configuration>
-                            <outputDirectory>${project.basedir}/../mods</outputDirectory>
-                            <includeScope>runtime</includeScope>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Kun root: ryd <root>/mods/ ved mvn clean -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>3.3.2</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.2.0</version>
                 <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <goals><goal>exec</goal></goals>
+                    </execution>
+                </executions>
                 <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>${project.basedir}/mods</directory>
-                        </fileset>
-                    </filesets>
+                    <executable>${java.home}/bin/java</executable>
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                    <arguments>
+                        <argument>--module-path=mods-mvn</argument>
+                        <argument>--add-modules=ALL-MODULE-PATH</argument>
+                        <argument>--module=dk.sdu.st4.core/dk.sdu.st4.core.server.Main</argument>
+                    </arguments>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Root pom (no src/ dir): clean mods-mvn/ on mvn clean -->
+        <profile>
+            <id>parent-project</id>
+            <activation>
+                <file><missing>src</missing></file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-clean-plugin</artifactId>
+                        <version>3.3.2</version>
+                        <configuration>
+                            <filesets>
+                                <fileset>
+                                    <directory>mods-mvn</directory>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Child modules (have src/ dir): copy JAR + runtime deps into root/mods-mvn/ -->
+        <profile>
+            <id>child-project</id>
+            <activation>
+                <file><exists>src</exists></file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.6.1</version>
+                        <executions>
+                            <!-- Copy this module's own JAR -->
+                            <execution>
+                                <id>copy-module-jar</id>
+                                <phase>install</phase>
+                                <goals><goal>copy</goal></goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>${project.groupId}</groupId>
+                                            <artifactId>${project.artifactId}</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>jar</type>
+                                        </artifactItem>
+                                    </artifactItems>
+                                    <outputDirectory>../mods-mvn</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <!-- Copy external runtime dependencies -->
+                            <execution>
+                                <id>copy-external-deps</id>
+                                <phase>install</phase>
+                                <goals><goal>copy-dependencies</goal></goals>
+                                <configuration>
+                                    <outputDirectory>../mods-mvn</outputDirectory>
+                                    <includeScope>runtime</includeScope>
+                                    <excludeGroupIds>dk.sdu.st4</excludeGroupIds>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

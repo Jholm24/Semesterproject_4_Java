@@ -11,6 +11,7 @@ Remove-Item -Path ".\libs" -Recurse -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
 Write-Host "Building project..." -ForegroundColor Green
+
 mvn install -DskipTests
 
 Write-Host "Build complete!" -ForegroundColor Cyan

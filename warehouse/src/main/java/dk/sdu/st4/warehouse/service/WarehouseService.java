@@ -14,6 +14,10 @@ public class WarehouseService implements IWarehouse {
         this(new WarehouseConnect(AppConfig.WAREHOUSE_SERVICE_URL).getModel());
     }
 
+    public WarehouseService(String baseUrl) {
+        this(new WarehouseConnect(baseUrl).getModel());
+    }
+
     public WarehouseService(WarehouseModel model) {
         this.model = model;
     }

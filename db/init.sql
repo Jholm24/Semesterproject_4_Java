@@ -75,7 +75,7 @@ INSERT INTO production_lines (id, name, product, status, cycles, success_rate, w
 ON CONFLICT DO NOTHING;
 
 INSERT INTO line_machines (line_id, serial_no) VALUES
-('line-1', 'WH-P13752'), ('line-1', 'AG-294751'), ('line-1', 'AS-739281'),
+('line-1', 'WH-P13752'), ('line-1', 'AG-294751'), ('line-1', 'AS-917346')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO employees (id, name, username, role, pic, since, password_plain) VALUES
@@ -88,7 +88,5 @@ INSERT INTO employees (id, name, username, role, pic, since, password_plain) VAL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO line_employees (line_id, employee_id) VALUES
-('line-1', 'e1'), ('line-1', 'e3'),
-('line-2', 'e2'),
-('line-3', 'e4')
+('line-1', 'e1'), ('line-1', 'e3')
 ON CONFLICT DO NOTHING;
