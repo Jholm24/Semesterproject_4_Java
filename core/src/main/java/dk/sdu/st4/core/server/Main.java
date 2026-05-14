@@ -6,6 +6,7 @@ import dk.sdu.st4.common.services.IAssemblyRegistry;
 import dk.sdu.st4.common.services.IWarehouseRegistry;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -36,6 +37,11 @@ public class Main {
         ApiServer server = new ApiServer(orchestrator, port, uiRoot);
         server.start();
 
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            server.stop();
+            ctx.close();
+        }));
+
         System.out.println("=================================================");
         System.out.println("  Skateboard Productions");
         System.out.println("  http://localhost:" + port);
@@ -47,6 +53,11 @@ public class Main {
         System.out.println("  Requires: docker compose up -d");
         System.out.println("=================================================");
 
-        Thread.currentThread().join();
+        // Exit when stdin closes (terminal window closed)
+        try {
+            while (System.in.read() != -1) {}
+        } catch (IOException ignored) {}
+        System.exit(0);
+
     }
 }
