@@ -1,16 +1,44 @@
 function TaskBuilder({ nav }) {
   const PALETTE = [
-    { id:'wh-pick', type:'warehouse', op:'PICK_TRAY', label:'Pick Tray', desc:'Warehouse → outlet', dur:4.2 },
-    { id:'wh-insert', type:'warehouse', op:'INSERT_ITEM', label:'Insert Item', desc:'Assembled → warehouse', dur:3.8 },
-    { id:'agv-move-wh', type:'agv', op:'MOVE_TO_STORAGE', label:'Move → Storage', desc:'AGV travel to warehouse', dur:6.1 },
-    { id:'agv-pick-wh', type:'agv', op:'PICK_WAREHOUSE', label:'Pick · Warehouse', desc:'AGV grab from outlet', dur:2.4 },
+    { id:'wh-pick',    type:'warehouse', op:'PICK_TRAY',    label:'Pick Parts',      desc:'Parts WH → outlet (parts variant)', dur:4.2 },
+    { id:'wh-insert',  type:'warehouse', op:'INSERT_ITEM',  label:'Store Finished',  desc:'AGV → Accepted WH (accepted variant)', dur:3.8 },
+    { id:'agv-move-wh', type:'agv', op:'MOVE_TO_STORAGE',  label:'Move → Storage',  desc:'AGV travel to warehouse', dur:6.1 },
+    { id:'agv-pick-wh', type:'agv', op:'PICK_WAREHOUSE',   label:'Pick · Warehouse', desc:'AGV grab parts from outlet', dur:2.4 },
     { id:'agv-move-as', type:'agv', op:'MOVE_TO_ASSEMBLY', label:'Move → Assembly', desc:'AGV travel to station', dur:5.9 },
-    { id:'agv-put-as', type:'agv', op:'PUT_ASSEMBLY', label:'Put · Assembly', desc:'AGV drop to station', dur:2.2 },
-    { id:'agv-pick-as', type:'agv', op:'PICK_ASSEMBLY', label:'Pick · Assembly', desc:'AGV grab finished', dur:2.4 },
-    { id:'agv-put-wh', type:'agv', op:'PUT_WAREHOUSE', label:'Put · Warehouse', desc:'AGV drop to warehouse', dur:2.2 },
-    { id:'as-op', type:'assembly', op:'START_OPERATION', label:'Start Operation', desc:'Begin assembly cycle', dur:12.0 },
-    { id:'as-health', type:'assembly', op:'CHECK_HEALTH', label:'Check Health', desc:'Await emulator/checkhealth', dur:0.8 },
+    { id:'agv-put-as',  type:'agv', op:'PUT_ASSEMBLY',     label:'Put · Assembly',  desc:'AGV drop parts at station', dur:2.2 },
+    { id:'agv-pick-as', type:'agv', op:'PICK_ASSEMBLY',    label:'Pick · Assembly', desc:'AGV grab finished product', dur:2.4 },
+    { id:'agv-put-wh',  type:'agv', op:'PUT_WAREHOUSE',    label:'Put · Warehouse', desc:'AGV deliver to accepted WH', dur:2.2 },
+    { id:'as-op',     type:'assembly', op:'START_OPERATION', label:'Start Operation', desc:'Begin assembly cycle', dur:12.0 },
+    { id:'as-health', type:'assembly', op:'CHECK_HEALTH',    label:'Check Health',   desc:'Await emulator/checkhealth', dur:0.8 },
   ];
+
+  // Maps UI palette ID → orchestrator StepSpec format (what gets saved to DB and run by the backend)
+  const PALETTE_TO_STEP = {
+    'wh-pick':     { type: 'WAREHOUSE_PICK',    trayId: 1, variant: 'parts' },
+    'wh-insert':   { type: 'WAREHOUSE_INSERT',   trayId: 1, itemName: 'assembled-part', variant: 'accepted' },
+    'agv-move-wh': { type: 'AGV_MOVE_TO_STORAGE' },
+    'agv-pick-wh': { type: 'AGV_PICK_WAREHOUSE' },
+    'agv-move-as': { type: 'AGV_MOVE_TO_ASSEMBLY' },
+    'agv-put-as':  { type: 'AGV_PUT_ASSEMBLY' },
+    'agv-pick-as': { type: 'AGV_PICK_ASSEMBLY' },
+    'agv-put-wh':  { type: 'AGV_PUT_WAREHOUSE' },
+    'as-op':       { type: 'ASSEMBLY_EXECUTE' },
+    'as-health':   { type: 'ASSEMBLY_HEALTH' },
+  };
+
+  // Reverse map: orchestrator StepType → palette ID (for loading templates back into the editor)
+  const STEP_TO_PALETTE_ID = {
+    WAREHOUSE_PICK:     'wh-pick',
+    WAREHOUSE_INSERT:   'wh-insert',
+    AGV_MOVE_TO_STORAGE:  'agv-move-wh',
+    AGV_PICK_WAREHOUSE:   'agv-pick-wh',
+    AGV_MOVE_TO_ASSEMBLY: 'agv-move-as',
+    AGV_PUT_ASSEMBLY:     'agv-put-as',
+    AGV_PICK_ASSEMBLY:    'agv-pick-as',
+    AGV_PUT_WAREHOUSE:    'agv-put-wh',
+    ASSEMBLY_EXECUTE:   'as-op',
+    ASSEMBLY_HEALTH:    'as-health',
+  };
   const DEFAULT_SEQ = [
     'wh-pick','agv-move-wh','agv-pick-wh','agv-move-as','agv-put-as','as-op','as-health','agv-pick-as','agv-move-wh','agv-put-wh','wh-insert'
   ];
@@ -56,12 +84,17 @@ function TaskBuilder({ nav }) {
         body: JSON.stringify({ id, title: name, product: draft.product.trim() || '—',
                                machines: draftMachines, operators: [] }),
       });
+      const newStepsJson = JSON.stringify(seq.map(s => PALETTE_TO_STEP[s.id] || { type: s.id }));
       await fetch(API_BASE + '/api/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lineId: id, name: name + ' · Full Cycle',
-                               seq: JSON.stringify(seq.map(s => ({ id: s.id }))) }),
+        body: JSON.stringify({ lineId: id, name: name + ' · Full Cycle', seq: newStepsJson }),
       });
+      await fetch(API_BASE + '/api/sequence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: newStepsJson,
+      }).catch(() => {});
       nav.setActiveLine(id);
       nav.setView('dashboard');
     } catch { setCreating(false); }
@@ -103,10 +136,17 @@ function TaskBuilder({ nav }) {
   }, [lineId, lineName, isCreateMode]);
 
   const saveTemplate = async () => {
+    const steps = seq.map(s => PALETTE_TO_STEP[s.id] || { type: s.id });
+    const stepsJson = JSON.stringify(steps);
     await fetch(API_BASE + '/api/templates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lineId, name: templateName, seq: JSON.stringify(seq.map(s => ({id:s.id}))) }),
+      body: JSON.stringify({ lineId, name: templateName, seq: stepsJson }),
+    }).catch(() => {});
+    await fetch(API_BASE + '/api/sequence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: stepsJson,
     }).catch(() => {});
     fetchTemplates();
     setSaveBanner(true);
@@ -116,7 +156,11 @@ function TaskBuilder({ nav }) {
   const loadTemplate = (t) => {
     try {
       const parsed = typeof t.seq === 'string' ? JSON.parse(t.seq) : t.seq;
-      setSeq(parsed.map((s,i) => ({ id: s.id, key: 'k'+i+Date.now() })));
+      setSeq(parsed.map((s, i) => {
+        const paletteId = STEP_TO_PALETTE_ID[s.type] || s.id;
+        if (!paletteId || !PALETTE.find(p => p.id === paletteId)) return null;
+        return { id: paletteId, key: 'k' + i + Date.now() };
+      }).filter(Boolean));
       setTemplateName(t.name);
     } catch {}
   };

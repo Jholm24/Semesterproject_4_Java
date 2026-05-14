@@ -40,6 +40,7 @@ public class ApiServer {
         server.createContext("/api/control",   ex -> handle(ex, this::handleControl));
         server.createContext("/api/health",    ex -> handle(ex, this::handleHealth));
         server.createContext("/api/machines",  ex -> handle(ex, this::handleMachines));
+        server.createContext("/api/sequence",  ex -> handle(ex, this::handleSequence));
         server.createContext("/api/catalog",   ex -> handle(ex, this::handleCatalog));
         server.createContext("/api/lines",     ex -> handle(ex, this::handleLines));
         server.createContext("/api/employees", ex -> handle(ex, this::handleEmployees));
@@ -101,6 +102,15 @@ public class ApiServer {
 
         sendJson(ex, 200,
             "{\"ok\":true,\"lineStatus\":\"" + orchestrator.getLineStatus() + "\"}");
+    }
+
+    private void handleSequence(HttpExchange ex) throws IOException {
+        if (isPreflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+        String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        List<ProductionOrchestrator.StepSpec> steps = ProductionOrchestrator.parseSequence(body);
+        orchestrator.setActiveSequence(steps);
+        sendJson(ex, 200, "{\"ok\":true,\"steps\":" + steps.size() + "}");
     }
 
     private void handleMachines(HttpExchange ex) throws IOException {

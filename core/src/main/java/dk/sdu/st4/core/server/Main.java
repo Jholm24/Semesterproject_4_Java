@@ -27,12 +27,27 @@ public class Main {
         @SuppressWarnings("unchecked")
         Optional<IAssemblyRegistry>  assemblyRegistry  = (Optional<IAssemblyRegistry>)  ctx.getBean("assemblyRegistry");
 
-        String lineId = DbLineRepository.getAllLines().stream()
+        java.util.List<java.util.Map<String, Object>> allLines = DbLineRepository.getAllLines();
+
+        String lineId = allLines.stream()
                 .map(l -> (String) l.get("id"))
                 .findFirst().orElse(null);
 
         ProductionOrchestrator orchestrator = new ProductionOrchestrator(
                 agvRegistry, warehouseRegistry, assemblyRegistry, lineId);
+
+        // Reconnect machines that were already assigned to lines before this server restart
+        java.util.Set<String> seenSerials = new java.util.HashSet<>();
+        for (java.util.Map<String, Object> line : allLines) {
+            @SuppressWarnings("unchecked")
+            java.util.List<String> machines = (java.util.List<String>) line.get("machines");
+            if (machines != null) {
+                java.util.List<String> newOnes = machines.stream()
+                        .filter(seenSerials::add)
+                        .toList();
+                if (!newOnes.isEmpty()) orchestrator.onMachinesAssigned(newOnes);
+            }
+        }
 
         ApiServer server = new ApiServer(orchestrator, port, uiRoot);
         server.start();

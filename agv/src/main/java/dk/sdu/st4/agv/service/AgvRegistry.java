@@ -20,10 +20,11 @@ import java.util.stream.Collectors;
 
 public class AgvRegistry implements IAgvRegistry {
 
-    private final Queue<String>     pending   = new ConcurrentLinkedQueue<>();
-    private final Map<String, IAgv> services  = new ConcurrentHashMap<>();
-    private final Queue<String>     available = new ConcurrentLinkedQueue<>();
-    private final Set<String>       active    = ConcurrentHashMap.newKeySet();
+    private final Queue<String>     pending        = new ConcurrentLinkedQueue<>();
+    private final Map<String, IAgv> services       = new ConcurrentHashMap<>();
+    private final Queue<String>     available      = new ConcurrentLinkedQueue<>();
+    private final Set<String>       active         = ConcurrentHashMap.newKeySet();
+    private final Map<String, Map<String, Object>> telemetryCache = new ConcurrentHashMap<>();
 
     private final Map<String, IAgvFactory> factories =
             ServiceLoader.load(IAgvFactory.class).stream()
@@ -72,26 +73,45 @@ public class AgvRegistry implements IAgvRegistry {
                 IAgv agv = factory.create(sn, baseUrl);
                 services.put(sn, agv);
                 available.add(sn);
+                startTelemetryPoller(sn, agv);
             }
         } catch (Exception e) {
             System.err.println("[AgvRegistry] Failed to connect " + sn + ": " + e.getMessage());
         }
     }
 
+    // Background thread per AGV — refreshes telemetry cache every 1 s independently of UI polls.
+    // getMachinesStatus() reads the cache and is always instant (no blocking HTTP calls).
+    private void startTelemetryPoller(String sn, IAgv agv) {
+        Thread t = new Thread(() -> {
+            while (services.containsKey(sn)) {
+                try {
+                    var status = agv.getStatus();
+                    Map<String, Object> snap = new LinkedHashMap<>();
+                    snap.put("agvState", status.getState() != null ? status.getState().name() : "Unknown");
+                    snap.put("battery",  status.getBattery());
+                    snap.put("program",  status.getProgramName() != null ? status.getProgramName() : "");
+                    telemetryCache.put(sn, snap);
+                } catch (Exception ignored) { /* keep stale cache on error */ }
+                try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+            }
+            telemetryCache.remove(sn);
+        }, "agv-telem-" + sn);
+        t.setDaemon(true);
+        t.start();
+    }
+
     @Override
     public List<Map<String, Object>> getMachinesStatus() {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map.Entry<String, IAgv> e : services.entrySet()) {
-            String sn = e.getKey();
+        for (String sn : services.keySet()) {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("serialNo", sn);
+            m.put("serialNo",   sn);
             m.put("poolStatus", active.contains(sn) ? "active" : "idle");
-            try {
-                var status = e.getValue().getStatus();
-                m.put("agvState", status.getState() != null ? status.getState().name() : "Unknown");
-                m.put("battery",  status.getBattery());
-                m.put("program",  status.getProgramName() != null ? status.getProgramName() : "");
-            } catch (Exception ex) {
+            Map<String, Object> telem = telemetryCache.get(sn);
+            if (telem != null) {
+                m.putAll(telem);
+            } else {
                 m.put("agvState", "Unknown");
                 m.put("battery",  null);
                 m.put("program",  "");
@@ -106,7 +126,8 @@ public class AgvRegistry implements IAgvRegistry {
         pending.remove(sn);
         available.remove(sn);
         active.remove(sn);
-        services.remove(sn);
+        services.remove(sn);   // poller thread exits on next iteration when services no longer contains sn
+        telemetryCache.remove(sn);
     }
 
     @Override

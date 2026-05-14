@@ -94,11 +94,17 @@ public class ProductionOrchestrator {
     private final String                       lineId;
     private final List<StepSpec>               sequence;
 
-    private volatile String  lineStatus     = "standby";
-    private volatile boolean stopRequested  = false;
-    private volatile boolean pauseRequested = false;
-    private volatile int     cycleCount     = 0;
-    private volatile int     failCount      = 0;
+    private volatile String     lineStatus     = "standby";
+    private volatile boolean    stopRequested  = false;
+    private volatile boolean    pauseRequested = false;
+    private volatile int        cycleCount     = 0;
+    private volatile int        failCount      = 0;
+    private volatile List<StepSpec> activeSequence = null;
+
+    private volatile String currentAgvOp          = null;
+    private volatile String currentWarehouseOp    = null;
+    private volatile String currentWarehouseVariant = null;
+    private volatile String currentAssemblyOp     = null;
 
     private volatile AgvStatus lastAgvStatus = new AgvStatus(0, "", AgvState.Idle, "");
 
@@ -218,13 +224,14 @@ public class ProductionOrchestrator {
             return;
         }
 
+        List<StepSpec> activeSeq = loadActiveSequence();
         lineStatus     = "running";
         stopRequested  = false;
         pauseRequested = false;
-        Thread t = new Thread(this::cycleLoop, "orchestrator");
+        Thread t = new Thread(() -> cycleLoop(activeSeq), "orchestrator");
         t.setDaemon(true);
         t.start();
-        log("ok", "Linje startet — " + sequence.size() + " trin i sekvens");
+        log("ok", "Linje startet — " + activeSeq.size() + " trin i sekvens");
     }
 
     public boolean isReady() {
@@ -239,6 +246,11 @@ public class ProductionOrchestrator {
         if (warehouseRegistry.isEmpty()) missing.add("Warehouse");
         if (assemblyRegistry.isEmpty())  missing.add("Assembly");
         return missing;
+    }
+
+    public void setActiveSequence(List<StepSpec> seq) {
+        this.activeSequence = List.copyOf(seq);
+        log("ok", "Sekvens opdateret — " + seq.size() + " trin klar");
     }
 
     public synchronized void pause() {
@@ -289,25 +301,45 @@ public class ProductionOrchestrator {
         StringBuilder asArr  = new StringBuilder("[");
         boolean firstAgv = true, firstWh = true, firstAs = true;
 
+        // Snapshot op at the top — same concept as /api/events (direct volatile read, no registry gate).
+        String snapshotAgvOp = currentAgvOp;
         if (agvRegistry.isPresent()) {
-            for (Map<String, Object> m : agvRegistry.get().getMachinesStatus()) {
-                String battery = m.get("battery") != null ? m.get("battery").toString() : "null";
+            List<Map<String, Object>> agvList = agvRegistry.get().getMachinesStatus();
+            // Identify the active serial: prefer what the registry says; fall back to first entry
+            // so currentOp is always visible even if the active-set read races.
+            String activeSn = agvList.stream()
+                .filter(s -> "active".equals(str(s, "poolStatus")))
+                .map(s -> str(s, "serialNo"))
+                .findFirst()
+                .orElseGet(() -> agvList.isEmpty() ? "" : str(agvList.get(0), "serialNo"));
+            for (Map<String, Object> m : agvList) {
+                String  battery    = m.get("battery") != null ? m.get("battery").toString() : "null";
+                boolean isDesignatedActive = str(m, "serialNo").equals(activeSn);
+                String  poolStatus = isDesignatedActive && snapshotAgvOp != null
+                                     ? "active" : str(m, "poolStatus");
+                String  op         = isDesignatedActive && snapshotAgvOp != null ? snapshotAgvOp : "";
                 String entry = String.format(
-                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"agvState\":\"%s\",\"battery\":%s,\"program\":\"%s\"}",
-                    esc(str(m, "serialNo")), str(m, "poolStatus"), str(m, "agvState"),
-                    battery, esc(str(m, "program")));
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"agvState\":\"%s\",\"battery\":%s,\"program\":\"%s\",\"currentOp\":\"%s\"}",
+                    esc(str(m, "serialNo")), poolStatus, str(m, "agvState"),
+                    battery, esc(str(m, "program")), esc(op));
                 if (!firstAgv) agvArr.append(",");
                 agvArr.append(entry);
                 firstAgv = false;
             }
         }
 
+        String snapshotWhOp      = currentWarehouseOp;
+        String snapshotWhVariant = currentWarehouseVariant;
         if (warehouseRegistry.isPresent()) {
             for (Map<String, Object> m : warehouseRegistry.get().getMachinesStatus()) {
-                int state = m.get("warehouseState") instanceof Number n ? n.intValue() : 0;
+                int     state     = m.get("warehouseState") instanceof Number n ? n.intValue() : 0;
+                String  whVariant = str(m, "variant");
+                boolean isActive  = snapshotWhOp != null && whVariant.equals(snapshotWhVariant);
+                String  poolStatus = isActive ? "active" : "idle";
+                String  op         = isActive ? snapshotWhOp : "";
                 String entry = String.format(
-                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"warehouseState\":%d}",
-                    esc(str(m, "serialNo")), str(m, "poolStatus"), state);
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"warehouseState\":%d,\"currentOp\":\"%s\",\"variant\":\"%s\"}",
+                    esc(str(m, "serialNo")), poolStatus, state, esc(op), esc(str(m, "variant")));
                 if (!firstWh) whArr.append(",");
                 whArr.append(entry);
                 firstWh = false;
@@ -320,9 +352,11 @@ public class ProductionOrchestrator {
                 String  healthy   = m.get("healthy")         instanceof Boolean b ? b.toString() : "null";
                 int     opId      = m.get("operationId")     instanceof Number n ? n.intValue()  : -1;
                 int     lastOpId  = m.get("lastOperationId") instanceof Number n ? n.intValue()  : -1;
+                boolean isActive  = "active".equals(str(m, "poolStatus"));
+                String  op        = (isActive && currentAssemblyOp != null) ? currentAssemblyOp : "";
                 String entry = String.format(
-                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"state\":%d,\"healthy\":%s,\"operationId\":%d,\"lastOperationId\":%d}",
-                    esc(str(m, "serialNo")), str(m, "poolStatus"), state, healthy, opId, lastOpId);
+                    "{\"serialNo\":\"%s\",\"poolStatus\":\"%s\",\"state\":%d,\"healthy\":%s,\"operationId\":%d,\"lastOperationId\":%d,\"currentOp\":\"%s\"}",
+                    esc(str(m, "serialNo")), str(m, "poolStatus"), state, healthy, opId, lastOpId, esc(op));
                 if (!firstAs) asArr.append(",");
                 asArr.append(entry);
                 firstAs = false;
@@ -338,13 +372,21 @@ public class ProductionOrchestrator {
         return v != null ? v.toString() : "";
     }
 
+    // ── Aktiv sekvens fra DB-template ────────────────────────────────────────
+
+    private List<StepSpec> loadActiveSequence() {
+        if (activeSequence != null) return activeSequence;
+        log("info", "Ingen sekvens sat — bruger standardsekvens");
+        return sequence;
+    }
+
     // ── Cyklus-løkke ─────────────────────────────────────────────────────────
 
-    private void cycleLoop() {
+    private void cycleLoop(List<StepSpec> activeSeq) {
         while (!stopRequested) {
             if (pauseRequested) { sleep(200); continue; }
             try {
-                runOneCycle();
+                runOneCycle(activeSeq);
             } catch (Exception e) {
                 log("err", "Cyklusfejl: " + e.getMessage());
                 failCount++;
@@ -355,7 +397,7 @@ public class ProductionOrchestrator {
         }
     }
 
-    private void runOneCycle() throws Exception {
+    private void runOneCycle(List<StepSpec> activeSeq) throws Exception {
         // start() har allerede verificeret at alle tre registries er til stede
         IAgvRegistry      agvReg = agvRegistry.get();
         IAssemblyRegistry asReg  = assemblyRegistry.get();
@@ -370,7 +412,7 @@ public class ProductionOrchestrator {
         }
 
         try {
-            for (StepSpec step : sequence) {
+            for (StepSpec step : activeSeq) {
                 if (stopRequested) return;
                 executeStep(step, agv, assembly);
             }
@@ -378,6 +420,7 @@ public class ProductionOrchestrator {
             if (lineId != null) DbLineRepository.recordCycleComplete(lineId);
             log("ok", "Cyklus " + cycleCount + " fuldført");
         } finally {
+            currentAgvOp = null;
             agvReg.release(agv);
             asReg.release(assembly);
         }
@@ -400,40 +443,68 @@ public class ProductionOrchestrator {
             // Warehouse — vælges pr. variant (fx "parts", "accepted", "defect")
             case WAREHOUSE_PICK -> {
                 IWarehouse wh = resolveWarehouse(step.variant);
+                currentWarehouseVariant = step.variant;
+                currentWarehouseOp = "PickItem";
                 log("info", "Warehouse[" + step.variant + "] · henter bakke " + step.trayId);
                 wh.PickItem(step.trayId, "");
+                sleep(2000);
+                currentWarehouseOp = null;
+                currentWarehouseVariant = null;
                 log("ok", "Warehouse · bakke klar ved udgang");
             }
             case WAREHOUSE_INSERT -> {
                 IWarehouse wh = resolveWarehouse(step.variant);
+                currentWarehouseVariant = step.variant;
+                currentWarehouseOp = "InsertItem";
                 log("info", "Warehouse[" + step.variant + "] · indsætter bakke " + step.trayId);
                 wh.InsertItem(step.trayId, step.itemName, "");
+                sleep(2000);
+                currentWarehouseOp = null;
+                currentWarehouseVariant = null;
                 log("ok", "Warehouse · item gemt");
             }
             case WAREHOUSE_INVENTORY -> {
                 IWarehouse wh = resolveWarehouse(step.variant);
+                currentWarehouseVariant = step.variant;
+                currentWarehouseOp = "GetInventory";
                 log("info", "Warehouse[" + step.variant + "] · henter lager");
                 wh.GetInventory("");
+                sleep(2000);
+                currentWarehouseOp = null;
+                currentWarehouseVariant = null;
             }
             case WAREHOUSE_STATE -> {
                 IWarehouse wh = resolveWarehouse(step.variant);
+                currentWarehouseVariant = step.variant;
+                currentWarehouseOp = "GetState";
                 int state = wh.GetState("");
+                sleep(2000);
+                currentWarehouseOp = null;
+                currentWarehouseVariant = null;
                 log("info", "Warehouse[" + step.variant + "] · tilstand = " + state);
             }
 
             // Assembly
             case ASSEMBLY_EXECUTE -> {
+                currentAssemblyOp = "Execute";
                 log("info", "Assembly · starter operation");
                 assembly.setExecuteOperation();
                 waitForAssemblyIdle(assembly);
+                currentAssemblyOp = null;
                 log("ok", "Assembly · operation fuldført");
             }
             case ASSEMBLY_STATUS -> {
+                currentAssemblyOp = "GetStatus";
                 int status = assembly.getStatus();
+                sleep(2000);
+                currentAssemblyOp = null;
                 log("info", "Assembly · status = " + status);
             }
             case ASSEMBLY_HEALTH -> {
+                currentAssemblyOp = "CheckHealth";
                 boolean healthy = assembly.getHealth();
+                sleep(2000);
+                currentAssemblyOp = null;
                 log("info", "Assembly · sund = " + healthy);
             }
         }
@@ -443,10 +514,15 @@ public class ProductionOrchestrator {
 
     private void agvStep(IAgv agv, AgvProgram program) throws Exception {
         if (stopRequested) return;
+        currentAgvOp = program.name();
         log("info", "AGV · " + program.name());
         agv.loadProgram(program);
         agv.executeProgram();
+        sleep(2000);
         pollUntilAgvIdle(agv, program.name());
+        // currentAgvOp is NOT cleared here — it persists for the whole cycle so the UI
+        // always sees the last AGV operation, mirroring how events persist in the log.
+        // It is cleared in runOneCycle's finally block when the AGV is released.
     }
 
     private void pollUntilAgvIdle(IAgv agv, String opName) throws Exception {

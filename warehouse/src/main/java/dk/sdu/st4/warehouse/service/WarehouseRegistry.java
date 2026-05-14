@@ -17,8 +17,9 @@ import java.util.stream.Collectors;
 
 public class WarehouseRegistry implements IWarehouseRegistry {
 
-    private final Map<String, IWarehouse> bySerialNo = new ConcurrentHashMap<>();
-    private final Map<String, IWarehouse> byVariant  = new ConcurrentHashMap<>();
+    private final Map<String, IWarehouse> bySerialNo      = new ConcurrentHashMap<>();
+    private final Map<String, IWarehouse> byVariant       = new ConcurrentHashMap<>();
+    private final Map<String, String>     variantBySerial = new ConcurrentHashMap<>();
 
     private final Map<String, IWarehouseFactory> factories =
             ServiceLoader.load(IWarehouseFactory.class).stream()
@@ -62,7 +63,10 @@ public class WarehouseRegistry implements IWarehouseRegistry {
                 }
                 IWarehouse service = factory.create(serialNumber, baseUrl);
                 bySerialNo.put(serialNumber, service);
-                if (variant != null && !variant.isBlank()) byVariant.put(variant, service);
+                if (variant != null && !variant.isBlank()) {
+                    byVariant.put(variant, service);
+                    variantBySerial.put(serialNumber, variant);
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to connect warehouse " + serialNumber, e);
@@ -72,16 +76,12 @@ public class WarehouseRegistry implements IWarehouseRegistry {
     @Override
     public List<Map<String, Object>> getMachinesStatus() {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map.Entry<String, IWarehouse> e : bySerialNo.entrySet()) {
-            String sn = e.getKey();
+        for (String sn : bySerialNo.keySet()) {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("serialNo",  sn);
-            m.put("poolStatus", "idle");
-            try {
-                m.put("warehouseState", e.getValue().GetState(""));
-            } catch (Exception ex) {
-                m.put("warehouseState", 0);
-            }
+            m.put("serialNo",       sn);
+            m.put("poolStatus",     "idle");
+            m.put("variant",        variantBySerial.getOrDefault(sn, ""));
+            m.put("warehouseState", 0);
             result.add(m);
         }
         return result;
@@ -91,6 +91,7 @@ public class WarehouseRegistry implements IWarehouseRegistry {
     public void disconnect(String serialNumber) {
         IWarehouse removed = bySerialNo.remove(serialNumber);
         if (removed != null) byVariant.values().remove(removed);
+        variantBySerial.remove(serialNumber);
     }
 
     @Override

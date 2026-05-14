@@ -9,7 +9,6 @@ const MACHINE_TYPES = {
         <path d="M6 14 V9 H10 V14" stroke="currentColor" strokeWidth="1.5"/>
       </svg>
     ),
-    badge: 'Parts', protocol: 'SOAP · :8081'
   },
   agv: {
     id: 'agv', label: 'AGV', accent: 'var(--c-agv)', accentSoft: 'var(--c-agv-soft)',
@@ -20,7 +19,6 @@ const MACHINE_TYPES = {
         <circle cx="11" cy="13" r="1.5" stroke="currentColor" strokeWidth="1.5"/>
       </svg>
     ),
-    badge: 'Mobile', protocol: 'REST · :8082'
   },
   assembly: {
     id: 'assembly', label: 'Assemble Table', accent: 'var(--c-as)', accentSoft: 'var(--c-as-soft)',
@@ -29,21 +27,35 @@ const MACHINE_TYPES = {
         <path d="M2 12 H14 M4 12 V8 M12 12 V8 M3 8 H13 L11 4 H5 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
       </svg>
     ),
-    badge: 'Station', protocol: 'MQTT · :1883'
   },
 };
 
 // ── API response → UI machine object converters ───────────────────────────────
 
+const AGV_OP_LABELS = {
+  MoveToStorageOperation:  'Move to Storage',
+  MoveToAssemblyOperation: 'Move to Assembly',
+  MoveToChargerOperation:  'Move to Charger',
+  PickWarehouseOperation:  'Pick at Warehouse',
+  PutWarehouseOperation:   'Put at Warehouse',
+  PickAssemblyOperation:   'Pick at Assembly',
+  PutAssemblyOperation:    'Put at Assembly',
+};
+
 function toAgvMachine(m) {
   const sn = m.serialNo || m.serialNumber;
+  const isActive = m.poolStatus === 'active';
   const stateLabels = { Idle: 'Idle', Executing: 'Running', Charging: 'Charging' };
+  const rawLabel = stateLabels[m.agvState] || (m.agvState || '—');
+  const rawOp = m.currentOp || null;
+  const opLabel = rawOp ? (AGV_OP_LABELS[rawOp] || rawOp) : null;
   return {
     id: sn,
     type: 'agv',
     name: 'AGV ' + sn,
-    status: m.poolStatus === 'active' ? 'active' : 'idle',
-    stateLabel: stateLabels[m.agvState] || (m.agvState || '—'),
+    status: isActive ? 'active' : 'idle',
+    stateLabel: isActive ? (m.agvState === 'Executing' ? 'Executing' : 'In Cycle') : rawLabel,
+    currentOp: opLabel,
     battery: m.battery,
     serial: sn,
     _program: m.program || null,
@@ -52,13 +64,16 @@ function toAgvMachine(m) {
 
 function toWarehouseMachine(m) {
   const sn = m.serialNo || m.serialNumber;
-  const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
+  const isActive = m.poolStatus === 'active';
+  const variantLabels = { parts: 'Parts', accepted: 'Accepted', defect: 'Defect' };
   return {
     id: sn,
     type: 'warehouse',
     name: 'Warehouse ' + sn,
-    status: m.poolStatus === 'active' ? 'active' : 'idle',
-    stateLabel: stateLabels[m.warehouseState] || '—',
+    status: isActive ? 'active' : 'idle',
+    stateLabel: isActive ? 'Active' : 'Idle',
+    currentOp: m.currentOp || null,
+    variant: variantLabels[m.variant] || m.variant || '—',
     warehouseState: m.warehouseState,
     serial: sn,
   };
@@ -66,14 +81,23 @@ function toWarehouseMachine(m) {
 
 function toAssemblyMachine(m) {
   const sn = m.serialNo || m.serialNumber;
-  const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
   const isActive = m.poolStatus === 'active';
+  const stateLabels = { 0: 'Idle', 1: 'Executing', 2: 'Error' };
+  let stateLabel;
+  if (!isActive) {
+    stateLabel = 'Idle';
+  } else if (m.state === 0 || m.state === '0') {
+    stateLabel = 'In Cycle';
+  } else {
+    stateLabel = stateLabels[m.state] || '—';
+  }
   return {
     id: sn,
     type: 'assembly',
     name: 'Assembly ' + sn,
     status: isActive ? 'active' : 'idle',
-    stateLabel: isActive ? (stateLabels[m.state] || '—') : 'Idle',
+    stateLabel,
+    currentOp: m.currentOp || null,
     state: m.state,
     healthy: m.healthy,
     operationId: m.operationId,
@@ -146,7 +170,7 @@ function ManagerDashboard({ nav }) {
       } catch { /* backend offline — pool stays empty */ }
     };
     poll();
-    const id = setInterval(poll, 2000);
+    const id = setInterval(poll, 500);
     return () => { active = false; clearInterval(id); };
   }, []);
 
@@ -199,7 +223,7 @@ function ManagerDashboard({ nav }) {
       } catch { if (active) setBackendOnline(false); }
     };
     poll();
-    const id = setInterval(poll, 2000);
+    const id = setInterval(poll, 500);
     return () => { active = false; clearInterval(id); };
   }, [lineStatus, currentLine.id]);
 
@@ -213,7 +237,8 @@ function ManagerDashboard({ nav }) {
         if (active && evts.length > 0) patchLine({ log: evts.slice(0, 10) });
       } catch { }
     };
-    const id = setInterval(poll, 2000);
+    poll();
+    const id = setInterval(poll, 500);
     return () => { active = false; clearInterval(id); };
   }, [currentLine.id]);
 
@@ -484,14 +509,21 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
         <span className="mcard-ic">{t.icon}</span>
         <span className="mcard-name">{machine.name}</span>
         <span className={`mcard-badge mcard-badge-${statusTone}`}>{t.badge}</span>
-        <span className={`mcard-status mono mcard-status-${statusTone}`}>{machine.status === 'active' ? 'Active' : 'Idle'}</span>
       </header>
 
       {machine.type === 'warehouse' && (
         <div className="mcard-body">
           <div className="mcard-row">
-            <span className="mcard-k">State</span>
-            <span className="mcard-v mono">{machine.stateLabel}</span>
+            <span className="mcard-k">Role</span>
+            <span className="mcard-v mono">
+              {machine.variant === 'Parts'    ? 'Parts'     :
+               machine.variant === 'Accepted' ? 'Finished' :
+               machine.variant || '—'}
+            </span>
+          </div>
+          <div className="mcard-row">
+            <span className="mcard-k">Running</span>
+            <span className="mcard-v mono">{machine.currentOp || machine.stateLabel}</span>
           </div>
           <div className="mcard-meta mono">
             <span>SOAP · :8081</span>
@@ -503,8 +535,8 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
       {machine.type === 'agv' && (
         <div className="mcard-body">
           <div className="mcard-row">
-            <span className="mcard-k">Status</span>
-            <span className="mcard-v mono">{machine.stateLabel}</span>
+            <span className="mcard-k">Current Operation</span>
+            <span className="mcard-v mono">{machine.currentOp || machine.stateLabel}</span>
           </div>
           <div className="mcard-row">
             <span className="mcard-k">Battery</span>
@@ -514,8 +546,8 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
             <div className="mcard-bar"><div className="mcard-bar-fill" style={{width: machine.battery+'%'}}/></div>
           )}
           <div className="mcard-meta mono">
-            <span>PROG · {machine._program || '—'}</span>
-            <span>{machine._program ? 'LIVE' : machine.serial}</span>
+            <span>{machine.serial}</span>
+            <span>{machine.status === 'active' ? 'LIVE' : 'IDLE'}</span>
           </div>
         </div>
       )}
@@ -523,15 +555,15 @@ function MachineCard({ machine, onRemove, onOpen, lineStatus }) {
       {machine.type === 'assembly' && (
         <div className="mcard-body">
           <div className="mcard-row">
-            <span className="mcard-k">Status</span>
-            <span className="mcard-v mono">{machine.stateLabel}</span>
+            <span className="mcard-k">Current Operation</span>
+            <span className="mcard-v mono">{machine.currentOp || machine.stateLabel}</span>
           </div>
           <div className="mcard-row">
             <span className="mcard-k">Health</span>
             <span className="mcard-v mono">{machine.healthy === true ? 'Healthy' : machine.healthy === false ? 'Unhealthy' : '—'}</span>
           </div>
           <div className="mcard-row">
-            <span className="mcard-k">Current Op</span>
+            <span className="mcard-k">Op ID</span>
             <span className="mcard-v mono">{machine.operationId >= 0 ? machine.operationId : '—'}</span>
           </div>
           <div className="mcard-meta mono">
