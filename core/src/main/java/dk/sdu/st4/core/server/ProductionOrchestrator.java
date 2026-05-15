@@ -486,7 +486,7 @@ public class ProductionOrchestrator {
 
             // Assembly
             case ASSEMBLY_EXECUTE -> {
-                currentAssemblyOp = "Execute";
+                currentAssemblyOp = "Executing";
                 log("info", "Assembly · starter operation");
                 assembly.setExecuteOperation();
                 waitForAssemblyIdle(assembly);
@@ -520,9 +520,7 @@ public class ProductionOrchestrator {
         agv.executeProgram();
         sleep(2000);
         pollUntilAgvIdle(agv, program.name());
-        // currentAgvOp is NOT cleared here — it persists for the whole cycle so the UI
-        // always sees the last AGV operation, mirroring how events persist in the log.
-        // It is cleared in runOneCycle's finally block when the AGV is released.
+        currentAgvOp = null;
     }
 
     private void pollUntilAgvIdle(IAgv agv, String opName) throws Exception {
